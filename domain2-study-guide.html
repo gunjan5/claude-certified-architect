@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCA-F Domain 2 — Tool Design &amp; MCP Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#ffffff;--bg2:#f8fafc;--bg3:#f1f5f9;--card:#ffffff;--card2:#f8fafc;
+--accent:#0d9488;--accent2:#14b8a6;--accentDim:rgba(13,148,136,.05);
+--green:#059669;--greenDim:rgba(5,150,105,.05);--greenBorder:rgba(5,150,105,.2);
+--purple:#7c3aed;--purpleDim:rgba(124,58,237,.05);
+--red:#dc2626;--redDim:rgba(220,38,38,.04);--redBorder:rgba(220,38,38,.15);
+--yellow:#b45309;--yellowDim:rgba(180,83,9,.05);
+--cyan:#0e7490;--cyanDim:rgba(14,116,144,.05);
+--orange:#c2410c;--orangeDim:rgba(194,65,12,.05);
+--blue:#2563eb;--blueDim:rgba(37,99,235,.05);
+--text:#0f172a;--textMid:#475569;--textDim:#94a3b8;
+--border:#e2e8f0;--border2:#cbd5e1;
+--code:#f8fafc;--codeText:#1e293b;
+--font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;--display:'Newsreader',Georgia,serif;
+--radius:10px;--radius-lg:14px;
+}
+html{font-size:15px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+#root{max-width:920px;margin:0 auto;padding:24px 20px 80px}
+button{cursor:pointer;font-family:var(--font);transition:all .15s}
+pre,code{font-family:var(--mono)}
+::selection{background:var(--accent);color:#fff}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.fade-in{animation:fadeIn .35s ease-out both}
+.slide-in{animation:slideIn .3s ease-out both}
+</style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client","react/jsx-runtime":"https://esm.sh/react@18.3.1/jsx-runtime"}}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React,{useState,useEffect,useRef,useCallback,useMemo} from 'react';
+import {createRoot} from 'react-dom/client';
+
+const VIEWS=['study','scenarios','decide','quiz','reference'];
+const VIEW_LABELS={study:'Study Guide',scenarios:'Scenarios',decide:'Decision Tool',quiz:'Exam Sim',reference:'Quick Ref'};
+const VIEW_ICONS={study:'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',scenarios:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',decide:'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',quiz:'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',reference:'M4 6h16M4 10h16M4 14h16M4 18h16'};
+
+const TASK_STATEMENTS=[
+  {id:'2.1',title:'Tool Interface Design',icon:'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',weight:5,color:'var(--accent2)'},
+  {id:'2.2',title:'Structured Error Responses',icon:'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',weight:4,color:'var(--red)'},
+  {id:'2.3',title:'Tool Distribution & tool_choice',icon:'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',weight:5,color:'var(--purple)'},
+  {id:'2.4',title:'MCP Server Integration',icon:'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01',weight:4,color:'var(--cyan)'},
+  {id:'2.5',title:'Built-in Tools Selection',icon:'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',weight:3,color:'var(--orange)'},
+];
+
+const SECTION_CONTENT={
+'2.1':{
+  keyInsight:"Tool descriptions are THE primary mechanism LLMs use for tool selection. Minimal descriptions = unreliable selection. This is the single highest-leverage fix for tool misrouting.",
+  concepts:[
+    {tag:'CORE',color:'var(--accent)',title:'Tool Descriptions — The #1 Lever',content:`Tool descriptions are prompt-engineered text injected into\nthe context window. They are how the model decides WHICH\ntool to use for a given request.\n\nBAD DESCRIPTION (causes misrouting):\n  name: "get_customer"\n  description: "Retrieves customer information"\n\nGOOD DESCRIPTION:\n  name: "get_customer"\n  description: "Look up a customer's account profile by\n    email address or phone number. Returns name, account\n    ID, subscription tier, and billing status. Use this\n    BEFORE any order operations to verify customer identity.\n    Do NOT use for order lookups — use lookup_order instead."\n\nKEY PRINCIPLES (Anthropic's Engineering Blog):\n1. Include input formats it handles\n2. Include example queries / use cases\n3. Explain edge cases and boundaries\n4. State when to use it vs similar tools\n5. Tool name regex: ^[a-zA-Z0-9_-]{1,64}$`},
+    {tag:'EXAM',color:'var(--red)',title:'Tool Misrouting — Sample Q2 Pattern',content:`SCENARIO: Agent calls get_customer when users ask\nabout orders ("check my order #12345").\nBoth tools have minimal descriptions.\n\nMOST EFFECTIVE FIRST STEP?\n✓ B) Expand tool descriptions with input formats,\n  examples, edge cases, boundaries\n  → Low-effort, high-leverage. Fixes root cause.\n\n✗ A) Few-shot examples → token overhead, doesn't\n  fix descriptions\n✗ C) Routing layer → over-engineered, bypasses\n  LLM understanding\n✗ D) Consolidate tools → valid but overkill as\n  first step\n\nPRINCIPLE: Fix tool descriptions FIRST.\nOnly add infrastructure after descriptions optimized.`},
+    {tag:'PATTERN',color:'var(--accent2)',title:'Splitting vs Consolidating Tools',content:`SPLIT when:\n• A generic tool serves multiple unrelated purposes\n• Users can't tell which tool to pick\n• Tool does too many things poorly\n\nExample: analyze_document →\n  extract_data_points\n  summarize_content\n  verify_claim_against_source\n\nCONSOLIDATE when:\n• Multiple tools always called together\n• Individual tools are fine-grained API wrappers\n• Each unnecessary call adds 200-300ms + 1000+ tokens\n\nExample: get_customer_by_id + list_transactions\n  + list_notes → get_customer_context\n\nNAMING TO REDUCE AMBIGUITY:\n• Use meaningful namespacing:\n  asana_search, jira_search (not just "search")\n• Rename to eliminate overlap:\n  analyze_content → extract_web_results\n  analyze_document → summarize_pdf`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'System Prompt & Tool Selection',content:`System prompt wording can OVERRIDE tool descriptions!\n\nPROBLEM: Keyword-sensitive instructions create\nunintended tool associations.\n\nExample: System prompt says "always analyze content\nbefore responding" → agent calls analyze_content tool\neven when not relevant, because of keyword match.\n\nFIX: Review system prompts for keyword-sensitive\ninstructions that might override tool descriptions.\n\nTOOL DESCRIPTION BEST PRACTICES (Anthropic):\n• Challenge each piece: "Does this justify its\n  token cost?"\n• "Can I assume Claude knows this?"\n• Small refinements yield dramatic improvements\n• Anthropic: "More time optimizing tools than prompts\n  for SWE-bench"`},
+  ]
+},
+'2.2':{
+  keyInsight:"Structured error responses with error categories, retryable flags, and guidance enable intelligent recovery. Generic 'Operation failed' messages prevent the agent from making good decisions.",
+  concepts:[
+    {tag:'CORE',color:'var(--red)',title:'MCP isError Flag — How It Works',content:`The isError flag is returned in the JSON-RPC result\n(NOT as a protocol error). This distinction is critical:\n\n• Protocol errors → shown in UI notifications,\n  DISCARDED from context\n• isError: true → INJECTED into LLM's context window,\n  allowing model to understand failure and recover\n\nRETURN FORMAT:\n{\n  "content": [{\n    "type": "text",\n    "text": "Error: Customer not found for email..."\n  }],\n  "isError": true\n}\n\nIn the Claude API (not MCP), use tool_result:\n{\n  "type": "tool_result",\n  "tool_use_id": "toolu_01...",\n  "content": "Error: Customer not found",\n  "is_error": true\n}`},
+    {tag:'EXAM',color:'var(--red)',title:'Error Categories — Know All Four',content:`FOUR ERROR CATEGORIES:\n\n1. TRANSIENT errors (retryable)\n   → timeouts, service unavailability, rate limits\n   → Agent should: retry with backoff\n\n2. VALIDATION errors (not retryable)\n   → invalid input format, missing required fields\n   → Agent should: fix input and retry\n\n3. BUSINESS errors (not retryable)\n   → policy violations, insufficient permissions\n   → Agent should: explain to user, don't retry\n\n4. PERMISSION errors (not retryable)\n   → unauthorized access, scope limitations\n   → Agent should: escalate or request auth\n\nSTRUCTURED ERROR RESPONSE:\n{\n  "errorCategory": "transient",\n  "isRetryable": true,\n  "description": "Database connection timed out",\n  "suggestedAction": "Retry in 5 seconds"\n}`},
+    {tag:'PATTERN',color:'var(--accent2)',title:'Error Propagation in Multi-Agent',content:`LOCAL RECOVERY FIRST:\nSubagents should handle transient errors locally\n(retry with backoff) before propagating to coordinator.\n\nONLY ESCALATE:\n• Errors that cannot be resolved locally\n• Along with: partial results + what was attempted\n\nCRITICAL DISTINCTION:\n• Access failure (server down) → needs retry decision\n• Valid empty result (no matches) → successful query!\n  Return: {"results": [], "status": "success"}\n  NOT: {"isError": true, "message": "No results"}\n\nEMPTY ≠ ERROR:\nA search returning 0 results is a VALID response.\nDon't mark it as an error — that prevents recovery.\n\nGENERIC ERRORS ARE AN ANTI-PATTERN:\n✗ "Operation failed" → agent can't decide what to do\n✓ "Timeout after 30s querying orders DB. 3 of 5\n   records retrieved. Retry may complete." → actionable`},
+  ]
+},
+'2.3':{
+  keyInsight:"Too many tools degrades reliability. Restrict agents to 4-5 role-relevant tools. tool_choice has four modes: auto (default), any (must use a tool), tool (force specific), none (no tools).",
+  concepts:[
+    {tag:'CORE',color:'var(--purple)',title:'tool_choice Configuration — All 4 Modes',content:`tool_choice controls HOW the model uses tools:\n\n┌──────────────────┬──────────────────────────────────┐\n│ Mode             │ Behavior                         │\n├──────────────────┼──────────────────────────────────┤\n│ "auto" (default) │ Claude decides whether to use     │\n│                  │ tools or respond with text        │\n├──────────────────┼──────────────────────────────────┤\n│ "any"            │ MUST call at least one tool.      │\n│                  │ Claude picks which one.           │\n│                  │ Use: chatbots where every         │\n│                  │ response goes through a tool      │\n├──────────────────┼──────────────────────────────────┤\n│ {"type": "tool", │ MUST call THIS specific tool.     │\n│  "name": "..."}  │ Use: structured output extraction │\n│                  │ or forcing first step             │\n├──────────────────┼──────────────────────────────────┤\n│ "none"           │ Cannot use any tools.             │\n│                  │ Use: follow-up turns after        │\n│                  │ extraction                        │\n└──────────────────┴──────────────────────────────────┘\n\nEXAM TIP: "any" ≠ "auto".\n"any" = MUST use a tool. "auto" = MAY use a tool.`},
+    {tag:'EXAM',color:'var(--red)',title:'Tool Distribution — The 18 vs 4-5 Problem',content:`PROBLEM: Agent has 18 tools available.\n→ Frequently selects wrong tools\n→ Uses tools outside its intended role\n→ Cross-specialization misuse\n\nSOLUTION: Restrict to 4-5 role-relevant tools.\n\nRECOMMENDED PER ROLE:\n• Read-only review: Read, Grep, Glob\n• Test runner: Bash, Read, Grep\n• Code modifier: Read, Edit, Write, Grep, Glob\n• Web researcher: WebSearch, WebFetch, Read\n• Synthesis: verify_fact (scoped)\n\nSCOPED CROSS-ROLE TOOLS:\nSometimes an agent needs LIMITED cross-role capability.\nExample: verify_fact for synthesis agent\n→ Handles 85% of needs (simple lookups)\n→ Complex 15% still routes through coordinator\n→ This IS least privilege\n\nREPLACING GENERIC TOOLS:\n✗ fetch_url (too broad, can fetch anything)\n✓ load_document (validates document URLs only)`},
+    {tag:'CODE',color:'var(--purple)',title:'Forced Tool Selection Patterns',content:`PATTERN 1: Structured Output Extraction\n// Force a specific tool to guarantee schema output\ntool_choice = {"type": "tool", "name": "extract_sentiment"}\n// Claude MUST call this tool → you get structured JSON\n\nPATTERN 2: Enforce First Step\n// Force metadata extraction before enrichment\nTurn 1: tool_choice = {"type":"tool","name":"extract_metadata"}\nTurn 2: tool_choice = "auto"  // now enrichment tools\n\nPATTERN 3: Guarantee Tool Use\n// Chatbot must always use a tool (e.g., send_text)\ntool_choice = "any"\n// Claude picks which tool, but MUST pick one\n\nPATTERN 4: strict: true\n// Constrained decoding — model literally CANNOT\n// produce tokens violating your schema\ntool = {\n  "name": "analyze",\n  "input_schema": {...},\n  "strict": true  // eliminates retry logic entirely\n}`},
+  ]
+},
+'2.4':{
+  keyInsight:"MCP servers are configured at project-level (.mcp.json, shared via git) or user-level (~/.claude.json, personal). Environment variables for credentials. Tools from ALL configured servers available simultaneously.",
+  concepts:[
+    {tag:'CORE',color:'var(--cyan)',title:'MCP Server Configuration',content:`TWO CONFIGURATION SCOPES:\n\nPROJECT-LEVEL (.mcp.json in repo root):\n• Committed to git → shared with team\n• Team-wide tooling (Jira, GitHub, etc.)\n• Use env vars for credentials:\n{\n  "mcpServers": {\n    "github": {\n      "command": "npx",\n      "args": ["-y", "@mcp/github-server"],\n      "env": {\n        "GITHUB_TOKEN": "\${GITHUB_TOKEN}"\n      }\n    }\n  }\n}\n\nUSER-LEVEL (~/.claude.json):\n• NOT committed → personal only\n• Experimental/personal MCP servers\n• Available across all projects\n\nBOTH are available simultaneously.\nTools from ALL configured servers\nare discovered at connection time.`},
+    {tag:'PATTERN',color:'var(--accent2)',title:'MCP Resources vs Tools',content:`MCP SERVERS EXPOSE THREE PRIMITIVES:\n\n1. TOOLS (model-controlled)\n   → Executable functions the MODEL calls\n   → Can have side effects (write DB, send email)\n   → Example: create_jira_ticket, search_docs\n\n2. RESOURCES (application-controlled)\n   → Read-only data the APP/CLIENT injects\n   → No side effects, deterministic\n   → Example: documentation catalog, DB schema\n\n3. PROMPTS (user-controlled)\n   → Templated interaction patterns\n   → Example: code review template\n\nWHEN TO USE RESOURCES:\n✓ Content catalogs (issue summaries, doc trees)\n✓ Reduce exploratory tool calls\n✓ Give agents visibility into available data\n✓ Background context injection\n\nWHEN TO USE TOOLS:\n✓ Actions that change state\n✓ Dynamic queries with parameters\n✓ Operations model should decide when to invoke`},
+    {tag:'EXAM',color:'var(--red)',title:'MCP Best Practices',content:`COMMUNITY vs CUSTOM SERVERS:\n✓ Use existing community MCP servers for standard\n  integrations (Jira, GitHub, Slack)\n✗ Don't build custom servers for standard services\n✓ Reserve custom servers for team-specific workflows\n\nTOOL DESCRIPTION QUALITY:\n• Enhance MCP tool descriptions with detailed\n  capabilities and output explanations\n• Without good descriptions, agent may PREFER\n  built-in tools (like Grep) over more capable\n  MCP tools\n\nTRANSPORT TYPES:\n• stdio — local processes (most common)\n• HTTP — recommended for remote (new standard)\n• SSE — deprecated, don't use for new servers\n\nCLI COMMANDS:\n  claude mcp add --scope project myserver ...\n  claude mcp add --scope user myserver ...\n\nCRITICAL: env section must be at SAME level as\ncommand and args (not inside args).`},
+  ]
+},
+'2.5':{
+  keyInsight:"6 built-in tools: Grep (content search), Glob (file patterns), Read (full file), Write (new files), Edit (find-replace), Bash (shell). Start with Grep to find entry points, Read to follow flows.",
+  concepts:[
+    {tag:'CORE',color:'var(--orange)',title:'Built-in Tools — Complete Reference',content:`┌──────────┬─────────────────────────────────────┐\n│ Tool     │ Purpose                             │\n├──────────┼─────────────────────────────────────┤\n│ Grep     │ Search FILE CONTENTS for patterns    │\n│          │ (function names, errors, imports)    │\n│          │ Uses ripgrep under the hood          │\n├──────────┼─────────────────────────────────────┤\n│ Glob     │ Find FILES by name/path pattern     │\n│          │ (e.g., **/*.test.tsx)               │\n│          │ Sorted by modification time          │\n├──────────┼─────────────────────────────────────┤\n│ Read     │ Load full file contents              │\n│          │ Supports images, PDFs too            │\n├──────────┼─────────────────────────────────────┤\n│ Write    │ Create NEW files                     │\n│          │ Overwrites if exists                 │\n├──────────┼─────────────────────────────────────┤\n│ Edit     │ Targeted find-and-replace            │\n│          │ Requires UNIQUE text match           │\n│          │ Fails if match is non-unique         │\n├──────────┼─────────────────────────────────────┤\n│ Bash     │ Run shell commands                   │\n│          │ Persistent session (state preserved) │\n└──────────┴─────────────────────────────────────┘`},
+    {tag:'EXAM',color:'var(--red)',title:'Grep vs Glob — The Key Distinction',content:`GREP = search CONTENTS of files\n  "Find all callers of processRefund()"\n  "Locate error messages containing 'timeout'"\n  "Find all import statements for auth module"\n\nGLOB = search FILE NAMES/PATHS\n  "Find all test files: **/*.test.tsx"\n  "Find all config files: **/config.*"\n  "Find all Python files in src/"\n\nEXAM TIP: When the question says "find files\nmatching a naming pattern" → Glob.\nWhen it says "search code for a function/error/\nimport" → Grep.\n\nEDIT FALLBACK PATTERN:\nWhen Edit fails (non-unique text match):\n1. Read the full file contents\n2. Modify in memory\n3. Write the entire file back\n→ This is the documented fallback.`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'Incremental Codebase Understanding',content:`DON'T read all files upfront. Build understanding\nincrementally:\n\n1. START with Grep\n   → Find entry points, function definitions\n   → grep "export function" across codebase\n\n2. THEN use Read\n   → Follow imports from entry points\n   → Trace data flow through modules\n\n3. TRACE function usage across wrappers:\n   → First: identify all exported names\n   → Then: grep for each name across codebase\n   → This catches re-exports and wrappers\n\nTOOL SEARCH (for large MCP tool sets):\nWhen 10+ MCP tools are available, use Tool Search\nwith defer_loading to dynamically discover 3-5\nrelevant tools per query.\n→ Reduces token usage by ~85%\n→ Avoids context window pollution`},
+  ]
+}
+};
+
+const SCENARIOS=[
+{
+  id:'cs',title:'Customer Support Agent',
+  desc:'Tool descriptions, tool selection, error handling',
+  context:'You are building a customer support agent with MCP tools: get_customer, lookup_order, process_refund, escalate_to_human. The agent handles returns, billing disputes, and account issues.',
+  questions:[
+    {q:'Agent frequently calls get_customer when users ask about orders. Both tools have minimal descriptions. Most effective first step?',
+     opts:['Add few-shot examples showing order queries routing to lookup_order','Expand each tool description with input formats, examples, edge cases, boundaries','Implement keyword-based routing layer that pre-selects tools','Consolidate into single lookup_entity tool'],
+     correct:1,why:'Tool descriptions are THE primary mechanism for tool selection. Minimal descriptions = poor differentiation. Low-effort, high-leverage fix.',principle:'Fix tool descriptions FIRST before adding infrastructure.',section:'2.1'},
+    {q:'lookup_order returns a generic "Operation failed" when the orders database is temporarily unavailable. The agent tells customers their order doesn\'t exist. How to fix?',
+     opts:['Return structured error with errorCategory: "transient", isRetryable: true, and the attempted query','Add retry logic in the system prompt telling the agent to try again on failure','Return isError: true with message "Please try again later"','Catch the error and return an empty order object to avoid confusing the agent'],
+     correct:0,why:'Structured error metadata (category + retryable flag + context) lets the agent make informed recovery decisions. Generic messages prevent smart recovery.',principle:'Structured errors enable recovery. Generic errors and suppression are anti-patterns.',section:'2.2'},
+    {q:'The agent has access to 15 tools but frequently picks the wrong one for order-related queries. The team added detailed descriptions but selection is still unreliable. Next step?',
+     opts:['Restrict the agent to only the 5 tools relevant to customer support','Add more few-shot examples showing correct tool usage patterns','Implement a routing classifier to pre-select tools','Switch to a more capable model for better tool selection'],
+     correct:0,why:'15 tools is too many — decision complexity degrades selection. Reduce to 4-5 role-relevant tools. Descriptions help but can\'t overcome combinatorial complexity.',principle:'Too many tools = worse reliability. Restrict per role first.',section:'2.3'},
+  ]
+},
+{
+  id:'dev',title:'Developer Productivity',
+  desc:'Built-in tools, MCP configuration, codebase exploration',
+  context:'You are building developer productivity tools using Claude Code. The agent helps explore codebases, generate code, and automate tasks. It uses built-in tools and integrates with MCP servers.',
+  questions:[
+    {q:'A developer wants to find all files that import the deprecated AuthService class. Which built-in tool should the agent use?',
+     opts:['Glob to find files matching *AuthService*','Grep to search file contents for "import.*AuthService"','Read to scan each file for the import','Bash to run find command across the codebase'],
+     correct:1,why:'Grep searches FILE CONTENTS for patterns. Finding import statements is content search. Glob finds files by NAME pattern, not content.',principle:'Grep = content search. Glob = file name/path matching.',section:'2.5'},
+    {q:'Your team wants to add a Jira MCP server that all developers can use when they clone the repo. Where should the configuration go?',
+     opts:['In .mcp.json at the project root with ${JIRA_TOKEN} for credentials','In ~/.claude.json on each developer\'s machine','In CLAUDE.md with instructions to configure Jira manually','In .claude/settings.json with the Jira server details'],
+     correct:0,why:'Project-scoped .mcp.json is committed to git and auto-available to all developers. Use env var expansion for credentials to avoid committing secrets.',principle:'Shared team tools → .mcp.json (project). Personal tools → ~/.claude.json (user).',section:'2.4'},
+    {q:'An agent needs to modify line 42 of a config file, but Edit fails because the text on that line appears multiple times in the file. What\'s the correct fallback?',
+     opts:['Read the full file, modify the content, then Write the entire file back','Use Bash with sed to make the targeted replacement','Add more surrounding context to the Edit command to make the match unique','Retry Edit with a line number parameter'],
+     correct:0,why:'When Edit fails due to non-unique matches, the documented fallback is Read + modify + Write. Adding more context (C) is also valid but Read+Write is the reliable fallback.',principle:'Edit non-unique → fallback to Read + Write. This is the documented pattern.',section:'2.5'},
+  ]
+},
+{
+  id:'mr',title:'Multi-Agent Research System',
+  desc:'MCP resources, tool scoping, error propagation',
+  context:'You are building a multi-agent research system with specialized subagents: web search, document analysis, synthesis. Each has scoped tool access via MCP.',
+  questions:[
+    {q:'The synthesis agent frequently needs to verify simple facts during synthesis. Currently this requires 2-3 round trips through the coordinator. 85% are simple lookups. Best approach?',
+     opts:['Give synthesis agent a scoped verify_fact tool for simple lookups; complex through coordinator','Give synthesis agent full web search tools','Batch all verifications at end of synthesis','Have coordinator pre-verify all potential facts before synthesis'],
+     correct:0,why:'Least privilege: give minimum tools for the 85% common case. Complex cases still coordinate. Full tools violates separation of concerns.',principle:'Scoped cross-role tools for high-frequency needs. Coordinator for complex cases.',section:'2.3'},
+    {q:'Your MCP server has a content catalog of 500+ research papers with titles, abstracts, and topics. How should you expose this to agents?',
+     opts:['As an MCP Resource — agents can browse the catalog without making tool calls','As an MCP Tool that returns the full catalog on each call','As entries in the system prompt listing all 500 papers','As a Grep-searchable local file'],
+     correct:0,why:'MCP Resources are application-controlled, read-only data ideal for content catalogs. They give agents visibility without requiring exploratory tool calls.',principle:'Content catalogs → MCP Resources. Actions → MCP Tools.',section:'2.4'},
+    {q:'A web search MCP tool returns the same generic "Error" string for timeouts, invalid queries, and permission failures. What should it return instead?',
+     opts:['Structured JSON with errorCategory, isRetryable, description, and suggestedAction','A more detailed error string with the specific error type','An HTTP status code that the agent can interpret','isError: true with no additional context'],
+     correct:0,why:'Structured error metadata with category, retryability, and suggested action enables the agent to make intelligent recovery decisions for each error type.',principle:'Structured errors with categories and retryable flags enable smart recovery.',section:'2.2'},
+  ]
+}
+];
+
+const QUIZ_DATA=[
+  {q:"Agent calls get_customer when users ask about orders. Both tools have minimal descriptions. Most effective first step?",opts:["Few-shot examples for correct routing","Expand tool descriptions with formats, examples, boundaries","Keyword-based routing layer","Consolidate into single lookup_entity tool"],correct:1,why:"Tool descriptions are THE primary mechanism for tool selection. Low-effort, high-leverage fix.",section:"2.1"},
+  {q:"Tool returns generic 'Operation failed' for all errors. Agent can't recover intelligently. Best fix?",opts:["Return structured error: errorCategory, isRetryable, description, suggestedAction","Add retry logic in system prompt","Return isError: true with 'try again later'","Return empty result to avoid confusion"],correct:0,why:"Structured metadata enables informed recovery. Generic messages prevent smart decisions.",section:"2.2"},
+  {q:"Agent has 18 tools. Frequently picks wrong ones. Best architectural fix?",opts:["Restrict to 4-5 role-relevant tools","Few-shot examples for all 18 tools","Tool routing layer","Improve all 18 descriptions"],correct:0,why:"Too many tools degrades selection by increasing decision complexity. Scope per role.",section:"2.3"},
+  {q:"Which tool_choice mode forces Claude to call a specific tool?",opts:['{"type":"tool","name":"extract_data"}','"any"','"auto"','"none"'],correct:0,why:"Forced tool selection specifies both type:'tool' and name. 'any' forces using A tool but Claude picks which.",section:"2.3"},
+  {q:"tool_choice: 'any' means:",opts:["Claude MUST call at least one tool, but picks which","Claude may or may not call tools","Claude must call every available tool","Claude cannot call any tools"],correct:0,why:"'any' guarantees tool use but lets the model choose which tool. 'auto' lets model decide whether to use tools at all.",section:"2.3"},
+  {q:"A search query returns 0 results. How should the MCP tool respond?",opts:['Return {results: [], status: "success"} — empty results are valid','Return isError: true with "No results found"','Return a generic error message','Retry the search with broader terms automatically'],correct:0,why:"A search returning 0 results is a VALID successful response, not an error. Marking it as error prevents correct reasoning.",section:"2.2"},
+  {q:"Team wants shared Jira MCP server for all developers. Where to configure?",opts:[".mcp.json at project root with env var expansion","~/.claude.json on each developer's machine","CLAUDE.md with configuration instructions",".claude/settings.json with server details"],correct:0,why:"Project-scoped .mcp.json is committed to git. Use ${JIRA_TOKEN} for credentials.",section:"2.4"},
+  {q:"Find all files that import AuthService class. Which built-in tool?",opts:["Grep — search file contents for pattern","Glob — find files by name pattern","Read — scan each file","Bash — run find command"],correct:0,why:"Grep searches file CONTENTS. Import statements are content. Glob matches file NAMES.",section:"2.5"},
+  {q:"Find all test files matching **/*.test.tsx. Which built-in tool?",opts:["Glob — file path pattern matching","Grep — search for test content","Read — check each file","Bash — run ls with pattern"],correct:0,why:"Glob finds files by NAME/PATH pattern. This is path matching, not content search.",section:"2.5"},
+  {q:"Edit fails because target text appears multiple times. Correct fallback?",opts:["Read full file, modify, Write entire file back","Use Bash with sed","Add more context to Edit to make match unique","Retry with line numbers"],correct:0,why:"Read + Write is the documented fallback when Edit can't find unique anchor text.",section:"2.5"},
+  {q:"analyze_content and analyze_document have near-identical descriptions causing misrouting. Best fix?",opts:["Rename to extract_web_results and summarize_pdf with specific descriptions","Add routing layer to disambiguate","Consolidate into single analyze tool","Add few-shot examples for each"],correct:0,why:"Renaming with purpose-specific names + clear descriptions eliminates functional overlap.",section:"2.1"},
+  {q:"You have a content catalog of 500 research papers. Best way to expose via MCP?",opts:["MCP Resource — read-only, browsable catalog","MCP Tool that returns full catalog","System prompt entries","Local searchable file"],correct:0,why:"MCP Resources are for read-only content catalogs. They give visibility without exploratory tool calls.",section:"2.4"},
+  {q:"A tool should be callable but also has related read-only schema data. How to expose both?",opts:["Tool for the action, Resource for the schema data","Two separate Tools","Single Tool that returns schema + executes action","System prompt with schema, Tool for action"],correct:0,why:"Tools are for model-invoked actions. Resources are for application-controlled read-only data like schemas.",section:"2.4"},
+  {q:"Which MCP transport type is recommended for remote servers?",opts:["HTTP","SSE (deprecated)","stdio","WebSocket"],correct:0,why:"HTTP is the recommended transport for remote MCP servers. SSE is deprecated. stdio is for local processes.",section:"2.4"},
+  {q:"Synthesis agent needs to verify facts. 85% simple, 15% complex. Best approach?",opts:["Scoped verify_fact tool for simple; complex through coordinator","Full web search tools for synthesis agent","Batch verifications at end","Pre-verify all facts before synthesis"],correct:0,why:"Least privilege: minimum tools for 85% case. Complex cases route through coordinator.",section:"2.3"},
+  {q:"Your tool returns Unix timestamps but the agent interprets them as strings. Where to fix?",opts:["In tool description: specify output format and data types clearly","In system prompt: tell agent to parse timestamps","In PostToolUse hook: normalize output","In the tool code: return formatted dates instead"],correct:0,why:"Tool descriptions should specify output formats. This is the first fix — clarify what the tool returns.",section:"2.1"},
+  {q:"A customer support agent needs to call get_customer before any other tool. How to enforce with tool_choice?",opts:['Force first turn: tool_choice={"type":"tool","name":"get_customer"}, then switch to auto','Set tool_choice="any" for all turns',"Add instruction in system prompt","Remove all other tools from first turn"],correct:0,why:"Forced tool selection on first turn guarantees the specific tool is called. Subsequent turns use auto.",section:"2.3"},
+  {q:"MCP server env config: where does the 'env' field go in .mcp.json?",opts:["Same level as 'command' and 'args'","Inside the 'args' array","In a separate 'environment' section","At the root level of the JSON file"],correct:0,why:"The env section must be at the SAME level as command and args, not nested inside args.",section:"2.4"},
+  {q:"Agent prefers built-in Grep over a more capable MCP code search tool. Why?",opts:["MCP tool description doesn't explain its advantages over Grep clearly","Built-in tools are always preferred by default","MCP tools are slower than built-in tools","The MCP server isn't configured correctly"],correct:0,why:"Without good descriptions, agents default to built-in tools. Enhanced MCP descriptions fix this.",section:"2.4"},
+  {q:"Building codebase understanding: what's the correct incremental approach?",opts:["Grep entry points → Read to follow imports → trace flows","Read all files upfront → analyze","Glob all files → Read each one","Bash find → cat each file"],correct:0,why:"Start with Grep for entry points, then Read to follow imports and trace flows. Don't read everything upfront.",section:"2.5"},
+  {q:"A generic 'fetch_url' tool lets agents fetch any URL. Security concern — best replacement?",opts:["Replace with load_document that validates document URLs only","Add URL filtering in system prompt","Use PreToolUse hook to block non-document URLs","Remove the tool entirely"],correct:0,why:"Replace generic tools with constrained alternatives. load_document validates URLs, preventing misuse.",section:"2.3"},
+  {q:"strict: true on a tool definition means:",opts:["Constrained decoding — model cannot produce tokens violating the schema","The tool must be called on every turn","The tool rejects invalid inputs","The tool returns errors for missing fields"],correct:0,why:"strict: true enables constrained decoding, guaranteeing schema-conformant output and eliminating retry logic.",section:"2.3"},
+  {q:"What's the documented regex pattern for tool names?",opts:["^[a-zA-Z0-9_-]{1,64}$","^[a-z_]+$","Any valid JavaScript identifier","No restrictions on naming"],correct:0,why:"Tool names must match ^[a-zA-Z0-9_-]{1,64}$ — alphanumeric, underscores, hyphens, 1-64 chars.",section:"2.1"},
+];
+
+const DECISIONS=[
+  {situation:'Agent misroutes between similar tools',category:'Descriptions',answer:'Expand tool descriptions with formats, examples, boundaries',wrong:'Few-shot examples or routing layer',reasoning:'Descriptions are THE primary selection mechanism. Fix root cause before adding infrastructure.'},
+  {situation:'Tool returns generic "Operation failed"',category:'Errors',answer:'Structured error with category, retryable flag, and guidance',wrong:'Retry logic in prompt or generic isError',reasoning:'Structured metadata enables intelligent recovery. Generic errors prevent smart decisions.'},
+  {situation:'Agent has 18 tools, picks wrong ones',category:'Distribution',answer:'Restrict to 4-5 role-relevant tools per agent',wrong:'Better descriptions for all 18',reasoning:'Decision complexity degrades selection. Scope per role first, then optimize descriptions.'},
+  {situation:'Need agent to always call a specific tool first',category:'tool_choice',answer:'Force first turn with {"type":"tool","name":"..."}, then auto',wrong:'System prompt instruction to call tool first',reasoning:'Forced tool_choice is deterministic. Prompt instructions are probabilistic.'},
+  {situation:'Chatbot must always respond through a tool',category:'tool_choice',answer:'tool_choice: "any" — must use a tool, model picks which',wrong:'tool_choice: "auto" with strong prompt',reasoning:'"any" guarantees tool use. "auto" lets model skip tools entirely.'},
+  {situation:'Search returns 0 results',category:'Errors',answer:'Return success with empty results array',wrong:'Return isError: true',reasoning:'Empty results = valid response. Marking as error prevents correct reasoning.'},
+  {situation:'Team needs shared MCP tools for all devs',category:'MCP Config',answer:'.mcp.json at project root (committed to git)',wrong:'~/.claude.json on each machine',reasoning:'Project-scoped config is version-controlled. User-scoped is personal only.'},
+  {situation:'Personal experimental MCP server',category:'MCP Config',answer:'~/.claude.json (user-scoped, not committed)',wrong:'.mcp.json (would affect all team members)',reasoning:'User-scoped config for personal/experimental tools.'},
+  {situation:'Find files importing a specific function',category:'Built-in Tools',answer:'Grep — searches file CONTENTS for patterns',wrong:'Glob — matches file NAMES',reasoning:'Import statements are file content. Grep searches content. Glob matches names.'},
+  {situation:'Find all .test.tsx files in codebase',category:'Built-in Tools',answer:'Glob — file path pattern matching',wrong:'Grep — searches content',reasoning:'This is path matching (file names), not content search.'},
+  {situation:'Edit fails on non-unique text',category:'Built-in Tools',answer:'Read + modify + Write as fallback',wrong:'Bash with sed',reasoning:'Documented fallback pattern. Read+Write is reliable when Edit can\'t find unique anchor.'},
+  {situation:'500-paper catalog needs to be accessible to agents',category:'MCP Resources',answer:'Expose as MCP Resource (read-only catalog)',wrong:'MCP Tool returning full catalog',reasoning:'Resources are for read-only content catalogs. No exploratory tool calls needed.'},
+  {situation:'Agent prefers Grep over better MCP search tool',category:'Descriptions',answer:'Enhance MCP tool description to explain advantages over Grep',wrong:'Disable Grep to force MCP tool use',reasoning:'Without good descriptions, agents default to familiar built-in tools.'},
+  {situation:'Generic fetch_url tool poses security risk',category:'Distribution',answer:'Replace with constrained load_document (validates URLs)',wrong:'URL filtering in system prompt',reasoning:'Replace generic tools with purpose-specific constrained alternatives.'},
+];
+
+/* SVG DIAGRAMS */
+
+function MCPArchDiagram(){
+  const [active,setActive]=useState(null);
+  const info={
+    host:'HOST: The LLM application (e.g., Claude Code, custom app). Creates and manages MCP clients.',
+    client:'CLIENT: Connector maintained by the host. Establishes 1:1 connection with an MCP server.',
+    server:'SERVER: Capability provider. Exposes Tools, Resources, and Prompts via JSON-RPC 2.0.',
+    tools:'TOOLS: Model-controlled executable functions. The model decides when to call them. Can have side effects.',
+    resources:'RESOURCES: Application-controlled read-only data. The app decides when to inject them. No side effects.',
+    prompts:'PROMPTS: User-controlled templated workflows. User selects from available templates.',
+  };
+  return React.createElement('div',{style:{marginBottom:16}},
+    React.createElement('svg',{viewBox:'0 0 460 230',style:{width:'100%',maxWidth:460,display:'block',margin:'0 auto'}},
+      React.createElement('defs',null,
+        React.createElement('marker',{id:'ah',markerWidth:8,markerHeight:6,refX:8,refY:3,orient:'auto'},
+          React.createElement('path',{d:'M0 0L8 3L0 6Z',fill:'var(--textDim)'})
+        )
+      ),
+      // Host
+      React.createElement('rect',{x:10,y:60,width:110,height:50,rx:8,fill:active==='host'?'var(--purpleDim)':'var(--card)',stroke:'var(--purple)',strokeWidth:active==='host'?2:1,cursor:'pointer',onClick:()=>setActive(active==='host'?null:'host')}),
+      React.createElement('text',{x:65,y:82,textAnchor:'middle',fill:'var(--purple)',fontSize:11,fontWeight:700,pointerEvents:'none'},'Host'),
+      React.createElement('text',{x:65,y:98,textAnchor:'middle',fill:'var(--textDim)',fontSize:8,pointerEvents:'none'},'(LLM App)'),
+      // Client
+      React.createElement('rect',{x:160,y:60,width:110,height:50,rx:8,fill:active==='client'?'var(--cyanDim)':'var(--card)',stroke:'var(--cyan)',strokeWidth:active==='client'?2:1,cursor:'pointer',onClick:()=>setActive(active==='client'?null:'client')}),
+      React.createElement('text',{x:215,y:82,textAnchor:'middle',fill:'var(--cyan)',fontSize:11,fontWeight:700,pointerEvents:'none'},'Client'),
+      React.createElement('text',{x:215,y:98,textAnchor:'middle',fill:'var(--textDim)',fontSize:8,pointerEvents:'none'},'(Connector)'),
+      // Server
+      React.createElement('rect',{x:310,y:60,width:140,height:50,rx:8,fill:active==='server'?'var(--accentDim)':'var(--card)',stroke:'var(--accent)',strokeWidth:active==='server'?2:1,cursor:'pointer',onClick:()=>setActive(active==='server'?null:'server')}),
+      React.createElement('text',{x:380,y:82,textAnchor:'middle',fill:'var(--accent)',fontSize:11,fontWeight:700,pointerEvents:'none'},'MCP Server'),
+      React.createElement('text',{x:380,y:98,textAnchor:'middle',fill:'var(--textDim)',fontSize:8,pointerEvents:'none'},'(Capabilities)'),
+      // Arrows
+      React.createElement('line',{x1:120,y1:85,x2:155,y2:85,stroke:'var(--textDim)',strokeWidth:1.5,markerEnd:'url(#ah)'}),
+      React.createElement('line',{x1:270,y1:85,x2:305,y2:85,stroke:'var(--textDim)',strokeWidth:1.5,markerEnd:'url(#ah)'}),
+      // Three primitives
+      ...[{id:'tools',x:320,y:145,label:'Tools',color:'var(--orange)',sub:'Model-controlled'},
+          {id:'resources',x:380,y:190,label:'Resources',color:'var(--cyan)',sub:'App-controlled'},
+          {id:'prompts',x:440,y:145,label:'Prompts',color:'var(--yellow)',sub:'User-controlled'}
+      ].map(p=>React.createElement('g',{key:p.id,onClick:()=>setActive(active===p.id?null:p.id),style:{cursor:'pointer'}},
+        React.createElement('line',{x1:380,y1:110,x2:p.x,y2:p.y-15,stroke:p.color,strokeWidth:1,strokeDasharray:'3,3'}),
+        React.createElement('rect',{x:p.x-40,y:p.y-15,width:80,height:30,rx:6,fill:active===p.id?p.color+'22':'var(--bg3)',stroke:p.color,strokeWidth:active===p.id?2:1}),
+        React.createElement('text',{x:p.x,y:p.y-1,textAnchor:'middle',fill:p.color,fontSize:10,fontWeight:600,pointerEvents:'none'},p.label),
+        React.createElement('text',{x:p.x,y:p.y+10,textAnchor:'middle',fill:'var(--textDim)',fontSize:7,pointerEvents:'none'},p.sub),
+      )),
+      // Labels
+      React.createElement('text',{x:137,y:78,fill:'var(--textDim)',fontSize:7,fontFamily:'var(--mono)'},'creates'),
+      React.createElement('text',{x:275,y:78,fill:'var(--textDim)',fontSize:7,fontFamily:'var(--mono)'},'JSON-RPC'),
+    ),
+    active&&React.createElement('div',{className:'fade-in',style:{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:'var(--radius)',padding:'12px 16px',marginTop:8,fontSize:13,color:'var(--textMid)',lineHeight:1.6}},info[active])
+  );
+}
+
+function ToolChoiceFlowDiagram(){
+  const modes=[
+    {label:'"auto"',color:'var(--accent2)',desc:'Claude decides whether to use tools',y:20},
+    {label:'"any"',color:'var(--orange)',desc:'MUST call a tool. Claude picks which.',y:70},
+    {label:'{"type":"tool","name":"..."}',color:'var(--purple)',desc:'MUST call THIS specific tool.',y:120},
+    {label:'"none"',color:'var(--textMid)',desc:'Cannot use any tools.',y:170},
+  ];
+  return React.createElement('svg',{viewBox:'0 0 400 210',style:{width:'100%',maxWidth:400,display:'block',margin:'0 auto 12px'}},
+    ...modes.map((m,i)=>React.createElement('g',{key:i},
+      React.createElement('rect',{x:20,y:m.y,width:160,height:36,rx:6,fill:'var(--card)',stroke:m.color,strokeWidth:1.5}),
+      React.createElement('text',{x:100,y:m.y+22,textAnchor:'middle',fill:m.color,fontSize:10,fontWeight:600,fontFamily:'var(--mono)'},m.label),
+      React.createElement('text',{x:200,y:m.y+22,fill:'var(--textMid)',fontSize:10,fontFamily:'var(--font)'},m.desc),
+    ))
+  );
+}
+
+function ErrorFlowDiagram(){
+  const steps=[
+    {label:'Tool Call',color:'var(--cyan)',y:10},
+    {label:'Execution',color:'var(--accent2)',y:55},
+    {label:'Success?',color:'var(--yellow)',y:100},
+  ];
+  return React.createElement('svg',{viewBox:'0 0 380 200',style:{width:'100%',maxWidth:380,display:'block',margin:'0 auto 12px'}},
+    React.createElement('defs',null,
+      React.createElement('marker',{id:'ah2',markerWidth:8,markerHeight:6,refX:8,refY:3,orient:'auto'},
+        React.createElement('path',{d:'M0 0L8 3L0 6Z',fill:'var(--textDim)'})
+      )
+    ),
+    ...steps.map((s,i)=>React.createElement('g',{key:i},
+      React.createElement('rect',{x:120,y:s.y,width:140,height:35,rx:6,fill:'var(--card)',stroke:s.color,strokeWidth:1.5}),
+      React.createElement('text',{x:190,y:s.y+22,textAnchor:'middle',fill:s.color,fontSize:11,fontWeight:600},s.label),
+      i<2&&React.createElement('line',{x1:190,y1:s.y+35,x2:190,y2:steps[i+1].y,stroke:'var(--textDim)',strokeWidth:1,markerEnd:'url(#ah2)'}),
+    )),
+    // Yes branch
+    React.createElement('line',{x1:260,y1:117,x2:330,y2:147,stroke:'var(--accent)',strokeWidth:1.5,markerEnd:'url(#ah2)'}),
+    React.createElement('rect',{x:290,y:145,width:85,height:30,rx:6,fill:'var(--accentDim)',stroke:'var(--accent)',strokeWidth:1}),
+    React.createElement('text',{x:332,y:164,textAnchor:'middle',fill:'var(--accent)',fontSize:9,fontWeight:600},'Return Result'),
+    React.createElement('text',{x:280,y:130,fill:'var(--accent)',fontSize:8,fontFamily:'var(--mono)'},'Yes'),
+    // No branch
+    React.createElement('line',{x1:120,y1:117,x2:50,y2:147,stroke:'var(--red)',strokeWidth:1.5,markerEnd:'url(#ah2)'}),
+    React.createElement('rect',{x:5,y:145,width:95,height:45,rx:6,fill:'var(--redDim)',stroke:'var(--red)',strokeWidth:1}),
+    React.createElement('text',{x:52,y:160,textAnchor:'middle',fill:'var(--red)',fontSize:8,fontWeight:600},'isError: true'),
+    React.createElement('text',{x:52,y:172,textAnchor:'middle',fill:'var(--textDim)',fontSize:7},'+ errorCategory'),
+    React.createElement('text',{x:52,y:182,textAnchor:'middle',fill:'var(--textDim)',fontSize:7},'+ isRetryable'),
+    React.createElement('text',{x:100,y:130,fill:'var(--red)',fontSize:8,fontFamily:'var(--mono)'},'No'),
+  );
+}
+
+/* UI COMPONENTS */
+const Icon=({d,size=20,color='currentColor',style={}})=>React.createElement('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:color,strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round',style},React.createElement('path',{d}));
+function Tag({color,children}){return React.createElement('span',{style:{fontSize:10,padding:'2px 8px',borderRadius:4,background:color+'1a',color,fontWeight:700,letterSpacing:'.04em',fontFamily:'var(--mono)',whiteSpace:'nowrap'}},children)}
+function WeightDots({weight,max=5}){return React.createElement('div',{style:{display:'flex',gap:3,alignItems:'center'}},...Array.from({length:max},(_,i)=>React.createElement('div',{key:i,style:{width:8,height:8,borderRadius:'50%',background:i<weight?'var(--accent)':'var(--border)'}})),React.createElement('span',{style:{fontSize:10,color:'var(--textDim)',marginLeft:4,fontFamily:'var(--mono)'}},weight>=4?'HIGH':weight>=3?'MED':'LOW'))}
+function CodeBlock({children}){return React.createElement('pre',{style:{margin:0,padding:14,background:'var(--code)',borderRadius:8,color:'var(--codeText)',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap',fontFamily:'var(--mono)',border:'1px solid var(--border)',overflowX:'auto'}},children)}
+function ConceptCard({concept,defaultOpen=false}){
+  const[open,setOpen]=useState(defaultOpen);
+  return React.createElement('div',{style:{background:'var(--card)',border:`1px solid ${open?concept.color+'55':'var(--border)'}`,borderLeft:`3px solid ${concept.color}`,borderRadius:'var(--radius)',marginBottom:10,transition:'border-color .2s'}},
+    React.createElement('div',{onClick:()=>setOpen(!open),style:{padding:'12px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},React.createElement(Tag,{color:concept.color},concept.tag),React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},concept.title)),
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:14,transform:open?'rotate(180deg)':'none',transition:'transform .2s',flexShrink:0}},'▾')
+    ),
+    open&&React.createElement('div',{className:'fade-in',style:{padding:'0 16px 16px'}},React.createElement(CodeBlock,null,concept.content))
+  );
+}
+
+/* STUDY VIEW */
+function StudyView({completed,onToggle}){
+  const[active,setActive]=useState(null);
+  const section=active?TASK_STATEMENTS.find(t=>t.id===active):null;
+  const content=active?SECTION_CONTENT[active]:null;
+  const pct=Math.round(completed.size/TASK_STATEMENTS.length*100);
+  if(section&&content){
+    const diagram=active==='2.1'?null:active==='2.3'?React.createElement(ToolChoiceFlowDiagram):active==='2.4'?React.createElement(MCPArchDiagram):active==='2.2'?React.createElement(ErrorFlowDiagram):null;
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('button',{onClick:()=>setActive(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:16,display:'flex',alignItems:'center',gap:4}},React.createElement(Icon,{d:'M15 19l-7-7 7-7',size:16}),'Back to all sections'),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,flexWrap:'wrap',gap:8}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:40,height:40,borderRadius:10,background:section.color+'1a',display:'flex',alignItems:'center',justifyContent:'center'}},React.createElement(Icon,{d:section.icon,color:section.color,size:22})),
+          React.createElement('h2',{style:{color:'var(--text)',fontSize:20,fontFamily:'var(--display)',fontWeight:700,margin:0}},`${section.id}: ${section.title}`)
+        ),
+        React.createElement(WeightDots,{weight:section.weight})
+      ),
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(16,185,129,.2)',borderRadius:'var(--radius)',padding:14,marginBottom:20}},
+        React.createElement('p',{style:{color:'var(--text)',margin:0,fontSize:13,lineHeight:1.6,fontWeight:500}},React.createElement('strong',{style:{color:'var(--accent2)'}},'Key Insight: '),content.keyInsight)
+      ),
+      diagram,
+      ...content.concepts.map((c,i)=>React.createElement(ConceptCard,{key:i,concept:c,defaultOpen:i===0})),
+      React.createElement('button',{onClick:()=>onToggle(section.id),style:{marginTop:12,padding:'10px 20px',background:completed.has(section.id)?'var(--accentDim)':'var(--accent)',color:completed.has(section.id)?'var(--accent2)':'white',border:completed.has(section.id)?'1px solid rgba(52,211,153,.3)':'none',borderRadius:8,fontSize:13,fontWeight:600}},completed.has(section.id)?'✓ Marked as Studied':'Mark Section Complete')
+    );
+  }
+  return React.createElement('div',null,
+    React.createElement('div',{style:{marginBottom:20}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--textDim)',marginBottom:4}},React.createElement('span',null,'Study Progress'),React.createElement('span',null,`${completed.size}/${TASK_STATEMENTS.length} (${pct}%)`)),
+      React.createElement('div',{style:{height:5,background:'var(--border)',borderRadius:3}},React.createElement('div',{style:{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--accent),var(--cyan))',borderRadius:3,transition:'width .4s'}}))
+    ),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      ...TASK_STATEMENTS.map((s,i)=>React.createElement('div',{key:s.id,onClick:()=>setActive(s.id),className:'slide-in',style:{animationDelay:`${i*40}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'border-color .15s'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12,flex:1}},
+          React.createElement('div',{style:{width:36,height:36,borderRadius:8,background:s.color+'15',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement(Icon,{d:s.icon,color:s.color,size:18})),
+          React.createElement('div',{style:{flex:1}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:2}},React.createElement('span',{style:{color:'var(--text)',fontWeight:600,fontSize:14}},s.id),React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},s.title),completed.has(s.id)&&React.createElement('span',{style:{color:'var(--accent)'}},'✓')),
+            React.createElement('div',{style:{color:'var(--textDim)',fontSize:12}},`${SECTION_CONTENT[s.id].concepts.length} concepts`)
+          )
+        ),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flexShrink:0}},React.createElement(WeightDots,{weight:s.weight}),React.createElement('span',{style:{color:'var(--textDim)'}},'→'))
+      ))
+    )
+  );
+}
+
+/* SCENARIOS VIEW */
+function ScenariosView(){
+  const[sc,setSc]=useState(null);
+  const[qIdx,setQIdx]=useState(0);
+  const[picked,setPicked]=useState(null);
+  const[score,setScore]=useState(0);
+  if(!sc)return React.createElement('div',null,
+    React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16,lineHeight:1.6}},'Practice Domain 2 scenarios in the exam format. Each presents context, then questions with feedback.'),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10}},...SCENARIOS.map((s,i)=>React.createElement('div',{key:s.id,onClick:()=>{setSc(s);setQIdx(0);setPicked(null);setScore(0);},className:'fade-in',style:{animationDelay:`${i*60}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:20,cursor:'pointer'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},React.createElement('h3',{style:{color:'var(--text)',fontSize:16,fontWeight:600,margin:0}},s.title),React.createElement(Tag,{color:'var(--accent)'},`${s.questions.length} Q`)),
+      React.createElement('p',{style:{color:'var(--textDim)',fontSize:12,margin:0}},s.desc)
+    )))
+  );
+  if(qIdx>=sc.questions.length){const p=Math.round(score/sc.questions.length*100);return React.createElement('div',{className:'fade-in',style:{textAlign:'center',padding:'40px 20px'}},
+    React.createElement('div',{style:{fontSize:56,marginBottom:12}},p>=80?'🎯':p>=60?'📊':'📚'),
+    React.createElement('h2',{style:{color:'var(--text)',margin:'0 0 8px'}},`${score}/${sc.questions.length} (${p}%)`),
+    React.createElement('div',{style:{display:'flex',gap:10,justifyContent:'center',marginTop:20}},
+      React.createElement('button',{onClick:()=>{setQIdx(0);setPicked(null);setScore(0);},style:{padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontWeight:600}},'Retry'),
+      React.createElement('button',{onClick:()=>setSc(null),style:{padding:'10px 20px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8}},'All Scenarios'))
+  );}
+  const q=sc.questions[qIdx];
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('button',{onClick:()=>setSc(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:12,display:'flex',alignItems:'center',gap:4}},React.createElement(Icon,{d:'M15 19l-7-7 7-7',size:16}),'All Scenarios'),
+    React.createElement('div',{style:{background:'var(--card2)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:16,border:'1px solid var(--border)'}},
+      React.createElement('h3',{style:{color:'var(--accent2)',fontSize:14,margin:'0 0 6px',fontFamily:'var(--mono)'}},'SCENARIO'),
+      React.createElement('h2',{style:{color:'var(--text)',fontSize:18,margin:'0 0 8px',fontWeight:600}},sc.title),
+      React.createElement('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},sc.context)
+    ),
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},React.createElement(Tag,{color:'var(--cyan)'},`Q${qIdx+1}/${sc.questions.length}`),React.createElement('span',{style:{color:'var(--accent)',fontSize:13,fontWeight:600}},`${score}/${qIdx}`)),
+    React.createElement('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},React.createElement('div',{style:{height:'100%',width:`${((qIdx+(picked!==null?1:0))/sc.questions.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--cyan))',borderRadius:2,transition:'width .3s'}})),
+    React.createElement('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},...q.opts.map((opt,i)=>{
+      let bg='var(--card)',bdr='var(--border)';
+      if(picked!==null){if(i===q.correct){bg='rgba(52,211,153,.08)';bdr='var(--accent)';}else if(i===picked){bg='var(--redDim)';bdr='var(--red)';}}
+      return React.createElement('div',{key:i,onClick:()=>{if(picked!==null)return;setPicked(i);if(i===q.correct)setScore(s=>s+1);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bdr}`,borderRadius:8,cursor:picked===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5}},React.createElement('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),opt);
+    })),
+    picked!==null&&React.createElement('div',{className:'fade-in',style:{marginTop:16}},
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(16,185,129,.2)',borderRadius:8,padding:14,marginBottom:12}},
+        React.createElement('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 4px',fontSize:11,fontFamily:'var(--mono)'}},'EXPLANATION'),
+        React.createElement('p',{style:{color:'var(--textMid)',margin:'0 0 10px',fontSize:13,lineHeight:1.6}},q.why),
+        React.createElement('div',{style:{background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:6,padding:'8px 12px'}},React.createElement('p',{style:{color:'var(--accent)',margin:0,fontSize:12,fontWeight:600}},q.principle))
+      ),
+      React.createElement('button',{onClick:()=>{if(qIdx<sc.questions.length-1){setQIdx(i=>i+1);setPicked(null);}else setQIdx(sc.questions.length);},style:{padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},qIdx<sc.questions.length-1?'Next Question →':'See Results')
+    )
+  );
+}
+
+/* DECISION VIEW */
+function DecisionView(){
+  const[selected,setSelected]=useState(null);
+  const cats=[...new Set(DECISIONS.map(d=>d.category))];
+  const[filter,setFilter]=useState('All');
+  const filtered=filter==='All'?DECISIONS:DECISIONS.filter(d=>d.category===filter);
+  return React.createElement('div',null,
+    React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16}},'Click any situation to see the correct approach and the common wrong answer.'),
+    React.createElement('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}},
+      React.createElement('button',{onClick:()=>setFilter('All'),style:{padding:'6px 12px',background:filter==='All'?'var(--accent)':'var(--card)',color:filter==='All'?'white':'var(--textMid)',border:`1px solid ${filter==='All'?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},'All'),
+      ...cats.map(c=>React.createElement('button',{key:c,onClick:()=>setFilter(c),style:{padding:'6px 12px',background:filter===c?'var(--accent)':'var(--card)',color:filter===c?'white':'var(--textMid)',border:`1px solid ${filter===c?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},c))
+    ),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},...filtered.map((d,i)=>React.createElement('div',{key:i,onClick:()=>setSelected(selected===i?null:i),className:'fade-in',style:{animationDelay:`${i*30}ms`,background:'var(--card)',border:`1px solid ${selected===i?'var(--accent)44':'var(--border)'}`,borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},React.createElement(Tag,{color:'var(--cyan)'},d.category),React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},d.situation)),
+        React.createElement('span',{style:{color:'var(--textDim)',fontSize:14,transform:selected===i?'rotate(180deg)':'none',transition:'transform .2s'}},'▾')
+      ),
+      selected===i&&React.createElement('div',{className:'fade-in',style:{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+        React.createElement('div',{style:{background:'rgba(52,211,153,.06)',border:'1px solid rgba(52,211,153,.2)',borderRadius:8,padding:12}},React.createElement('div',{style:{color:'var(--accent)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'CORRECT'),React.createElement('p',{style:{color:'var(--text)',fontSize:13,margin:0,fontWeight:500}},d.answer)),
+        React.createElement('div',{style:{background:'var(--redDim)',border:'1px solid var(--redBorder)',borderRadius:8,padding:12}},React.createElement('div',{style:{color:'var(--red)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'WRONG'),React.createElement('p',{style:{color:'var(--text)',fontSize:13,margin:0}},d.wrong)),
+        React.createElement('div',{style:{gridColumn:'1/-1',background:'var(--bg3)',borderRadius:8,padding:12}},React.createElement('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},React.createElement('strong',{style:{color:'var(--accent2)'}},'Why: '),d.reasoning))
+      )
+    )))
+  );
+}
+
+/* QUIZ VIEW */
+function QuizView(){
+  const[mode,setMode]=useState('setup');
+  const[secFilter,setSecFilter]=useState('all');
+  const[questions,setQuestions]=useState([]);
+  const[idx,setIdx]=useState(0);
+  const[picked,setPicked]=useState(null);
+  const[score,setScore]=useState(0);
+  const[answered,setAnswered]=useState(0);
+  const[answers,setAnswers]=useState([]);
+  function start(){
+    let qs=secFilter==='all'?[...QUIZ_DATA]:QUIZ_DATA.filter(q=>q.section===secFilter);
+    for(let i=qs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qs[i],qs[j]]=[qs[j],qs[i]];}
+    setQuestions(qs);setIdx(0);setPicked(null);setScore(0);setAnswered(0);setAnswers([]);setMode('quiz');
+  }
+  if(mode==='setup'){
+    const secs=['all',...TASK_STATEMENTS.map(t=>t.id)];
+    const counts={};secs.forEach(s=>{counts[s]=s==='all'?QUIZ_DATA.length:QUIZ_DATA.filter(q=>q.section===s).length;});
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('h3',{style:{color:'var(--text)',fontSize:18,marginBottom:8,fontFamily:'var(--display)'}},'Exam Simulator'),
+      React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:20}},`${QUIZ_DATA.length} questions across all 5 task statements.`),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:6,marginBottom:20}},...secs.map(s=>React.createElement('div',{key:s,onClick:()=>setSecFilter(s),style:{padding:'10px 14px',background:secFilter===s?'var(--accentDim)':'var(--card)',border:`1px solid ${secFilter===s?'var(--accent)44':'var(--border)'}`,borderRadius:8,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        React.createElement('span',{style:{color:secFilter===s?'var(--accent2)':'var(--text)',fontWeight:500,fontSize:14}},s==='all'?'All Sections':`${s}: ${TASK_STATEMENTS.find(t=>t.id===s)?.title||''}`),
+        React.createElement(Tag,{color:counts[s]?'var(--cyan)':'var(--textDim)'},`${counts[s]} Q`)
+      ))),
+      React.createElement('button',{onClick:start,disabled:!counts[secFilter],style:{padding:'12px 24px',background:counts[secFilter]?'var(--accent)':'var(--border)',color:'white',border:'none',borderRadius:8,fontSize:14,fontWeight:600,width:'100%'}},`Start Quiz (${counts[secFilter]} questions)`)
+    );
+  }
+  if(mode==='review'){
+    const bySection={};answers.forEach(a=>{if(!bySection[a.section])bySection[a.section]={c:0,t:0};bySection[a.section].t++;if(a.correct)bySection[a.section].c++;});
+    const p=Math.round(score/questions.length*100);
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('div',{style:{textAlign:'center',marginBottom:24}},
+        React.createElement('div',{style:{fontSize:56,marginBottom:8}},p>=80?'🎯':p>=60?'📊':'📚'),
+        React.createElement('h2',{style:{color:'var(--text)',margin:'0 0 4px'}},`${score}/${questions.length} (${p}%)`),
+        React.createElement('p',{style:{color:p>=72?'var(--accent)':'var(--red)',fontSize:14}},p>=72?'Above passing threshold (72%)':'Below passing threshold (72%)')
+      ),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:8,marginBottom:20}},...Object.entries(bySection).map(([sec,d])=>{const pct=Math.round(d.c/d.t*100);return React.createElement('div',{key:sec,style:{background:'var(--card)',borderRadius:8,padding:12,border:'1px solid var(--border)'}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},React.createElement('span',{style:{color:'var(--text)',fontWeight:600,fontSize:13}},sec),React.createElement('span',{style:{color:pct>=72?'var(--accent)':'var(--red)',fontSize:13,fontWeight:600}},`${pct}%`)),
+        React.createElement('div',{style:{height:4,background:'var(--border)',borderRadius:2}},React.createElement('div',{style:{height:'100%',width:`${pct}%`,background:pct>=72?'var(--accent)':'var(--red)',borderRadius:2}}))
+      );})),
+      React.createElement('div',{style:{display:'flex',gap:10}},
+        React.createElement('button',{onClick:()=>setMode('setup'),style:{flex:1,padding:'10px 20px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8,fontWeight:600}},'New Quiz'),
+        React.createElement('button',{onClick:start,style:{flex:1,padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontWeight:600}},'Retry'))
+    );
+  }
+  if(idx>=questions.length){setMode('review');return null;}
+  const q=questions[idx];
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+      React.createElement('div',{style:{display:'flex',gap:8}},React.createElement(Tag,{color:'var(--cyan)'},`Q${idx+1}/${questions.length}`),React.createElement(Tag,{color:'var(--accent)'},`Section ${q.section}`)),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},React.createElement('span',{style:{color:'var(--accent)',fontSize:13,fontWeight:600}},`${score}/${answered}`),React.createElement('button',{onClick:()=>setMode('setup'),style:{background:'none',border:'1px solid var(--border)',color:'var(--textDim)',borderRadius:6,padding:'4px 10px',fontSize:11}},'Exit'))
+    ),
+    React.createElement('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},React.createElement('div',{style:{height:'100%',width:`${((idx+(picked!==null?1:0))/questions.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--cyan))',borderRadius:2,transition:'width .3s'}})),
+    React.createElement('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},...q.opts.map((opt,i)=>{
+      let bg='var(--card)',bdr='var(--border)';
+      if(picked!==null){if(i===q.correct){bg='rgba(52,211,153,.08)';bdr='var(--accent)';}else if(i===picked){bg='var(--redDim)';bdr='var(--red)';}}
+      return React.createElement('div',{key:i,onClick:()=>{if(picked!==null)return;setPicked(i);setAnswered(a=>a+1);if(i===q.correct)setScore(s=>s+1);setAnswers(a=>[...a,{section:q.section,correct:i===q.correct}]);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bdr}`,borderRadius:8,cursor:picked===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5}},React.createElement('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),opt);
+    })),
+    picked!==null&&React.createElement('div',{className:'fade-in',style:{marginTop:16}},
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(16,185,129,.2)',borderRadius:8,padding:14}},React.createElement('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 4px',fontSize:11,fontFamily:'var(--mono)'}},'EXPLANATION'),React.createElement('p',{style:{color:'var(--textMid)',margin:0,fontSize:13,lineHeight:1.6}},q.why)),
+      React.createElement('button',{onClick:()=>{setIdx(i=>i+1);setPicked(null);},style:{marginTop:10,padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},idx<questions.length-1?'Next Question →':'See Results')
+    )
+  );
+}
+
+/* REFERENCE VIEW */
+function ReferenceView(){
+  const tables=[
+    {title:'Built-in Tools',color:'var(--orange)',rows:[['Tool','Purpose','Use When'],['Grep','Search file CONTENTS','Find function callers, imports, errors'],['Glob','Match file NAMES/PATHS','Find **/*.test.tsx, config files'],['Read','Load full file','View file contents, images, PDFs'],['Write','Create / overwrite files','New files or full rewrites'],['Edit','Find-and-replace','Targeted changes with unique text'],['Bash','Run shell commands','git, npm, build tools, scripts']]},
+    {title:'tool_choice Modes',color:'var(--purple)',rows:[['Mode','Behavior','Use Case'],['"auto"','May or may not use tools','Default — general conversation'],['"any"','MUST call a tool, picks which','Chatbots routing through tools'],['{"type":"tool","name":"X"}','MUST call specific tool','Structured output / force first step'],['"none"','Cannot use tools','Follow-up after extraction']]},
+    {title:'Error Categories',color:'var(--red)',rows:[['Category','Retryable?','Example'],['Transient','Yes','Timeout, rate limit, service down'],['Validation','Fix input','Invalid format, missing fields'],['Business','No','Policy violation, insufficient balance'],['Permission','No','Unauthorized, scope limitation']]},
+    {title:'MCP Configuration Scope',color:'var(--cyan)',rows:[['Scope','Location','Shared?','Use For'],['.mcp.json','Project root','Yes (git)','Team tools (Jira, GitHub)'],['~/.claude.json','Home dir','No (personal)','Experimental/personal servers']]},
+  ];
+  const traps=[
+    {title:'Grep vs Glob',desc:'Grep = file CONTENTS. Glob = file NAMES. The exam tests this distinction heavily.'},
+    {title:'any vs auto',desc:'"any" = MUST use a tool. "auto" = MAY use a tool. Completely different behaviors.'},
+    {title:'Empty ≠ Error',desc:'A search returning 0 results is SUCCESS, not an error. Don\'t mark valid empty results as isError.'},
+    {title:'Descriptions First',desc:'Always fix tool descriptions BEFORE adding routing layers or ML classifiers.'},
+    {title:'Too Many Tools',desc:'18 tools = confused selection. 4-5 per role is ideal. Restrict first, then optimize.'},
+    {title:'MCP Resources ≠ Tools',desc:'Resources are read-only, app-controlled (catalogs). Tools are model-controlled (actions).'},
+    {title:'Edit Fallback',desc:'When Edit fails (non-unique match), use Read + Write as the documented fallback.'},
+    {title:'isError in Result',desc:'isError goes in the JSON-RPC RESULT, not as protocol error. Protocol errors are discarded from context.'},
+  ];
+  const sources=[
+    {name:'Writing Effective Tools for Agents',url:'https://www.anthropic.com/engineering/writing-tools-for-agents',desc:'Anthropic\'s definitive guide to tool design — consolidation, naming, descriptions'},
+    {name:'Building Effective Agents',url:'https://anthropic.com/engineering/building-effective-agents',desc:'5 workflow patterns, tool design philosophy'},
+    {name:'MCP Specification',url:'https://modelcontextprotocol.io/specification/2025-11-25',desc:'Official spec — tools, resources, prompts, JSON-RPC 2.0'},
+    {name:'Tool Use Overview',url:'https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview',desc:'tool_choice, strict mode, tool descriptions'},
+    {name:'Claude Code MCP Docs',url:'https://code.claude.com/docs/en/mcp',desc:'Configuration scope, transport types, CLI commands'},
+    {name:'Structured Outputs',url:'https://console.anthropic.com/docs/en/build-with-claude/structured-outputs',desc:'JSON outputs vs strict tool use'},
+  ];
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(380px,1fr))',gap:12,marginBottom:20}},
+      ...tables.map(t=>React.createElement('div',{key:t.title,style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},
+        React.createElement('h4',{style:{color:t.color,margin:'0 0 10px',fontSize:14,fontFamily:'var(--display)'}},t.title),
+        React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12,fontFamily:'var(--mono)'}},
+          React.createElement('thead',null,React.createElement('tr',null,...t.rows[0].map((h,i)=>React.createElement('th',{key:i,style:{textAlign:'left',padding:'4px 6px',color:'var(--textDim)',borderBottom:'1px solid var(--border)',fontSize:10,fontWeight:600}},h)))),
+          React.createElement('tbody',null,...t.rows.slice(1).map((row,i)=>React.createElement('tr',{key:i},...row.map((cell,j)=>React.createElement('td',{key:j,style:{padding:'5px 6px',color:j===0?'var(--text)':'var(--textMid)',borderBottom:'1px solid var(--border)',fontSize:11}},cell)))))
+        )
+      ))
+    ),
+    React.createElement('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:20,border:'1px solid var(--redBorder)'}},
+      React.createElement('h4',{style:{color:'var(--red)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Top 8 Exam Traps — Domain 2'),
+      ...traps.map((t,i)=>React.createElement('div',{key:i,style:{marginBottom:8,fontSize:13}},React.createElement('span',{style:{color:'var(--text)',fontWeight:600}},`${i+1}. ${t.title}: `),React.createElement('span',{style:{color:'var(--textMid)'}},t.desc)))
+    ),
+    React.createElement('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},
+      React.createElement('h4',{style:{color:'var(--accent2)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Reference Sources'),
+      ...sources.map((s,i)=>React.createElement('div',{key:i,style:{marginBottom:10,paddingBottom:10,borderBottom:i<sources.length-1?'1px solid var(--border)':'none'}},
+        React.createElement('a',{href:s.url,target:'_blank',rel:'noopener',style:{color:'var(--cyan)',fontSize:13,fontWeight:500,textDecoration:'none'}},s.name,' ↗'),
+        React.createElement('p',{style:{color:'var(--textDim)',fontSize:12,margin:'2px 0 0'}},s.desc)
+      ))
+    )
+  );
+}
+
+/* MAIN APP */
+function App(){
+  const[view,setView]=useState('study');
+  const[completed,setCompleted]=useState(()=>{try{const s=localStorage.getItem('ccaf-d2-completed');return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
+  useEffect(()=>{localStorage.setItem('ccaf-d2-completed',JSON.stringify([...completed]));},[completed]);
+  const toggleComplete=(id)=>{setCompleted(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});};
+  return React.createElement('div',null,
+    React.createElement('div',{style:{marginBottom:20}},
+      React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:8,flexWrap:'wrap'}},React.createElement(Tag,{color:'var(--accent)'},'DOMAIN 2'),React.createElement(Tag,{color:'var(--orange)'},'18% OF EXAM')),
+      React.createElement('h1',{style:{fontSize:28,margin:'8px 0 4px',fontWeight:800,fontFamily:'var(--display)',letterSpacing:'-0.02em',lineHeight:1.2}},'Tool Design',React.createElement('br',null),React.createElement('span',{style:{color:'var(--accent2)'}},'& MCP Integration')),
+      React.createElement('p',{style:{color:'var(--textDim)',margin:0,fontSize:13}},'Claude Certified Architect — Foundations — Interactive Study Guide')
+    ),
+    React.createElement('div',{style:{display:'flex',gap:4,marginBottom:24,overflowX:'auto',paddingBottom:4}},...VIEWS.map(v=>React.createElement('button',{key:v,onClick:()=>setView(v),style:{padding:'8px 14px',background:view===v?'var(--accent)':'var(--card)',color:view===v?'white':'var(--textMid)',border:`1px solid ${view===v?'var(--accent)':'var(--border)'}`,borderRadius:8,fontSize:13,fontWeight:view===v?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6}},React.createElement(Icon,{d:VIEW_ICONS[v],size:16,color:view===v?'white':'var(--textDim)'}),VIEW_LABELS[v]))),
+    view==='study'&&React.createElement(StudyView,{completed,onToggle:toggleComplete}),
+    view==='scenarios'&&React.createElement(ScenariosView),
+    view==='decide'&&React.createElement(DecisionView),
+    view==='quiz'&&React.createElement(QuizView),
+    view==='reference'&&React.createElement(ReferenceView),
+    React.createElement('div',{style:{marginTop:48,paddingTop:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:10}},'Domain 2 of 5 — CCA-F Study Guide'),
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:10}},'Sources: Anthropic Docs, MCP Spec, Writing Effective Tools Blog'))
+  );
+}
+createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>

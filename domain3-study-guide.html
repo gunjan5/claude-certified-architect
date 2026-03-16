@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCA-F Domain 3 — Claude Code Configuration &amp; Workflows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#ffffff;--bg2:#f8fafc;--bg3:#f1f5f9;--card:#ffffff;--card2:#f8fafc;
+--accent:#b45309;--accent2:#d97706;--accentDim:rgba(180,83,9,.05);
+--green:#059669;--greenDim:rgba(5,150,105,.05);--greenBorder:rgba(5,150,105,.2);
+--red:#dc2626;--redDim:rgba(220,38,38,.04);--redBorder:rgba(220,38,38,.15);
+--purple:#7c3aed;--purpleDim:rgba(124,58,237,.05);
+--cyan:#0e7490;--cyanDim:rgba(14,116,144,.05);
+--orange:#c2410c;--orangeDim:rgba(194,65,12,.05);
+--blue:#2563eb;--blueDim:rgba(37,99,235,.05);
+--text:#0f172a;--textMid:#475569;--textDim:#94a3b8;
+--border:#e2e8f0;--border2:#cbd5e1;
+--code:#f8fafc;--codeText:#1e293b;
+--font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;--display:'Newsreader',Georgia,serif;
+--radius:10px;--radius-lg:14px;
+}
+html{font-size:15px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+#root{max-width:920px;margin:0 auto;padding:24px 20px 80px}
+button{cursor:pointer;font-family:var(--font);transition:all .15s}
+pre,code{font-family:var(--mono)}
+::selection{background:var(--accent);color:#000}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.fade-in{animation:fadeIn .35s ease-out both}.slide-in{animation:slideIn .3s ease-out both}
+</style>
+<script type="importmap">{"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client","react/jsx-runtime":"https://esm.sh/react@18.3.1/jsx-runtime"}}</script>
+</head>
+<body><div id="root"></div>
+<script type="module">
+import React,{useState,useEffect} from 'react';
+import {createRoot} from 'react-dom/client';
+const h=React.createElement;
+
+const VIEWS=['study','scenarios','decide','quiz','reference'];
+const VL={study:'Study Guide',scenarios:'Scenarios',decide:'Decision Tool',quiz:'Exam Sim',reference:'Quick Ref'};
+const VI={study:'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',scenarios:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',decide:'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',quiz:'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',reference:'M4 6h16M4 10h16M4 14h16M4 18h16'};
+
+const TS=[
+  {id:'3.1',title:'CLAUDE.md Configuration',icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',weight:5,color:'var(--accent2)'},
+  {id:'3.2',title:'Commands & Skills',icon:'M7 20l4-16m2 16l4-16M6 9h14M4 15h14',weight:4,color:'var(--purple)'},
+  {id:'3.3',title:'Path-Specific Rules',icon:'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',weight:4,color:'var(--cyan)'},
+  {id:'3.4',title:'Plan Mode vs Direct',icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',weight:5,color:'var(--green)'},
+  {id:'3.5',title:'Iterative Refinement',icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',weight:3,color:'var(--orange)'},
+  {id:'3.6',title:'CI/CD Integration',icon:'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',weight:4,color:'var(--red)'},
+];
+
+const SC={
+'3.1':{
+  keyInsight:"CLAUDE.md has a 4-level hierarchy: Managed Policy > User > Project > Directory. User-level is personal only (NOT shared via git). @import keeps files modular. .claude/rules/ is the alternative to monolithic CLAUDE.md.",
+  concepts:[
+    {tag:'CORE',color:'var(--accent)',title:'Configuration Hierarchy',content:`4-LEVEL HIERARCHY (higher = more authority):\n\n1. MANAGED POLICY (highest priority)\n   /Library/.../ClaudeCode/CLAUDE.md\n   → Org-wide, cannot be excluded by users\n\n2. USER LEVEL\n   ~/.claude/CLAUDE.md\n   → Personal prefs, all projects\n   → NOT shared via version control!\n   → NOT visible to teammates!\n\n3. PROJECT LEVEL\n   ./CLAUDE.md or ./.claude/CLAUDE.md\n   → Team-shared, version controlled\n   → Where team standards go\n\n4. DIRECTORY LEVEL\n   ./src/CLAUDE.md, ./api/CLAUDE.md\n   → Loads on-demand when Claude reads\n     files in that directory (lazy loading)\n\nEXAM TRAP: New team member not getting instructions?\n→ Check if instructions are in ~/.claude/CLAUDE.md\n   (user-level = personal only, not shared)`},
+    {tag:'EXAM',color:'var(--red)',title:'@import Syntax & Modular Organization',content:`@import KEEPS CLAUDE.md UNDER 200 LINES:\n\n# In your CLAUDE.md:\nSee @README for project overview.\nGit workflow: @docs/git-instructions.md\nPersonal: @~/.claude/my-project-prefs.md\n\nIMPORT RULES:\n• Relative paths resolve from importing file\n• Absolute paths and ~ paths supported\n• Recursive imports up to 5 hops deep\n• First-time external imports trigger approval\n• Imports load EAGERLY at launch (expanded inline)\n\n@import vs .claude/rules/:\n• @import → loads eagerly, expanded inline\n• .claude/rules/ → can be path-scoped,\n  loads conditionally\n\nUse @import for: shared references, READMEs\nUse rules for: file-type-specific conventions`},
+    {tag:'PATTERN',color:'var(--green)',title:'.claude/rules/ as Alternative',content:`SPLITTING MONOLITHIC CLAUDE.md:\n\nInstead of one huge file, use:\n  .claude/rules/testing.md\n  .claude/rules/api-conventions.md\n  .claude/rules/deployment.md\n  .claude/rules/code-style.md\n\nRules WITHOUT paths frontmatter load\nunconditionally (same as .claude/CLAUDE.md).\n\nRules WITH paths frontmatter load only\nwhen Claude reads matching files.\n\nDIAGNOSTICS:\n• /memory → view which files are loaded\n• Use to diagnose inconsistent behavior\n• CLAUDE.md survives /compact (re-read from disk)\n• Auto memory stored in:\n  ~/.claude/projects/<project>/memory/MEMORY.md\n• First 200 lines loaded per session`},
+  ]
+},
+'3.2':{
+  keyInsight:"Commands and Skills are now unified. .claude/commands/ and .claude/skills/ both create slash commands. Skills add: context:fork for isolation, allowed-tools for restriction, and supporting files.",
+  concepts:[
+    {tag:'CORE',color:'var(--purple)',title:'Commands & Skills — Unified System',content:`TWO SCOPES:\n• .claude/commands/ or .claude/skills/\n  → Project-scoped, shared via git\n• ~/.claude/commands/ or ~/.claude/skills/\n  → User-scoped, personal only\n\nProject commands OVERRIDE personal commands\nwith the same name.\n\nFILE → COMMAND NAME:\n  deploy.md → /deploy\n  review-code.md → /review-code\n\nARGUMENTS:\n  $ARGUMENTS → all args as string\n  $ARGUMENTS[0] or $0 → first arg\n  $ARGUMENTS[1] or $1 → second arg\n\nSKILLS vs CLAUDE.md:\n• Skills = on-demand invocation for\n  task-specific workflows\n• CLAUDE.md = always-loaded universal\n  standards`},
+    {tag:'EXAM',color:'var(--red)',title:'Skill Frontmatter — context:fork',content:`KEY FRONTMATTER OPTIONS:\n\n---\nname: deep-research\ndescription: Research a topic thoroughly\nargument-hint: [topic]\ncontext: fork\nagent: Explore\nallowed-tools: Read, Grep, Glob\ndisable-model-invocation: true\n---\n\ncontext: fork → CRITICAL FOR EXAM:\n• Runs skill in ISOLATED sub-agent context\n• Prevents verbose output from polluting\n  main conversation\n• Use for: codebase analysis, brainstorming,\n  exploration, anything verbose\n\nallowed-tools → Restrict tool access:\n• Limit to file writes to prevent destruction\n• Scope to read-only for safe analysis\n\nargument-hint → Prompts user for params\nwhen they invoke without arguments\n\ndisable-model-invocation: true\n→ Claude can't auto-trigger (deploy, commit)`},
+    {tag:'PATTERN',color:'var(--accent2)',title:'Personal Customization',content:`PERSONAL VARIANTS:\n• Create in ~/.claude/skills/ with DIFFERENT\n  names to avoid overriding team skills\n• Example: team has /review, you create\n  /my-review with personal tweaks\n\nDYNAMIC CONTENT:\n  !command! → shell injection in skill\n  @file → file reference inclusion\n  \${CLAUDE_SESSION_ID} → session ID\n  \${CLAUDE_SKILL_DIR} → skill directory\n\nSKILL DESCRIPTION BUDGET:\n• 2% of context window for all descriptions\n• Claude sees descriptions to know what's\n  available, but full content loads only\n  when invoked\n\nSKILLS ARE AUTO-DISCOVERABLE:\nClaude can invoke skills automatically when\nrelevant (unless disable-model-invocation).`},
+  ]
+},
+'3.3':{
+  keyInsight:"Path-specific rules in .claude/rules/ use YAML frontmatter with paths: glob patterns. Rules load ONLY when editing matching files — saving tokens. Better than directory CLAUDE.md for cross-directory conventions.",
+  concepts:[
+    {tag:'CORE',color:'var(--cyan)',title:'Path-Scoped Rules — Sample Q6 Pattern',content:`CREATE .claude/rules/testing.md:\n---\npaths:\n  - "**/*.test.tsx"\n  - "**/*.test.ts"\n  - "**/*.spec.ts"\n---\n\n# Testing Conventions\n- Use React Testing Library\n- Test behavior, not implementation\n- Mock external services only\n\nTHIS LOADS ONLY when Claude edits\nfiles matching these patterns.\n\nWHY BETTER THAN DIRECTORY CLAUDE.md:\nTest files spread throughout codebase:\n  src/auth/Login.test.tsx\n  src/api/orders.test.ts\n  components/Button.test.tsx\n\nDirectory CLAUDE.md can't cover files\nspread across many directories.\nGlob patterns (**/*.test.tsx) can!`},
+    {tag:'EXAM',color:'var(--red)',title:'Sample Q6 — Exact Pattern',content:`SCENARIO: Codebase has:\n• React components (functional + hooks)\n• API handlers (async/await)\n• DB models (repository pattern)\n• Test files spread throughout\n\nAll tests should follow same conventions\nregardless of location.\n\nBEST APPROACH?\n✓ A) .claude/rules/ with glob patterns\n  paths: ["**/*.test.tsx"]\n  → Auto-applies based on file paths\n  → Works regardless of directory\n\n✗ B) Root CLAUDE.md with headers\n  → Relies on inference, unreliable\n✗ C) Skills for each code type\n  → Requires manual invocation\n✗ D) Directory CLAUDE.md files\n  → Can't handle files spread across dirs\n\nPRINCIPLE: Path-specific rules for\ncross-directory conventions.`},
+  ]
+},
+'3.4':{
+  keyInsight:"Plan mode = complex, multi-file, architectural decisions. Direct execution = simple, well-scoped, clear changes. Plan mode prevents costly rework by analyzing BEFORE committing. Use Explore subagent for verbose discovery.",
+  concepts:[
+    {tag:'CORE',color:'var(--green)',title:'Plan Mode vs Direct — Decision Matrix',content:`PLAN MODE WHEN:\n✓ Complex multi-step tasks\n✓ Architectural decisions\n✓ Large-scale refactoring (45+ files)\n✓ Multiple valid approaches\n✓ Microservice restructuring\n✓ Library migration\n✓ Need to verify strategy first\n\nDIRECT EXECUTION WHEN:\n✓ Single-file bug fix with clear stack trace\n✓ Adding a date validation conditional\n✓ Simple feature additions\n✓ Well-understood scope\n✓ 90% of routine development\n\nTOGGLE: Shift+Tab (Normal → Auto → Plan)\nCLI: claude --permission-mode plan\nConfig: defaultMode: "plan" in settings.json\nEdit plan: Ctrl+G to open in text editor`},
+    {tag:'EXAM',color:'var(--red)',title:'Sample Q5 — Monolith to Microservices',content:`SCENARIO: Restructure monolith to microservices.\nChanges affect dozens of files.\nService boundary decisions needed.\n\n✓ A) Plan mode — explore, understand, design\n  before making changes.\n  → Prevents costly rework\n  → Safe codebase exploration\n\n✗ B) Direct execution incrementally\n  → Risks discovering dependencies late\n✗ C) Direct with upfront instructions\n  → Assumes you know the code already\n✗ D) Direct, switch to plan if complex\n  → Complexity is STATED, not emergent\n\nCOMBINED PATTERN:\n1. Plan mode → investigate + design\n2. Direct execution → implement plan\n\nExample: Plan library migration strategy,\nthen execute the planned approach.`},
+    {tag:'PATTERN',color:'var(--accent2)',title:'Explore Subagent',content:`EXPLORE = built-in READ-ONLY subagent:\n• Uses Haiku model (fast, cheap)\n• Write/Edit tools denied\n• Three thoroughness levels:\n  - quick: targeted lookups\n  - medium: balanced exploration\n  - very thorough: comprehensive analysis\n\nKEY BENEFIT: Context isolation\n• Verbose exploration stays in subagent\n• Only summary returns to main session\n• ~30 lines vs ~500+ lines of tool output\n\nWHEN TO USE:\n• Verbose discovery phases\n• Prevent context window exhaustion\n• Multi-phase tasks with exploration first\n\nOTHER BUILT-IN SUBAGENTS:\n• Plan → read-only, inherits model\n• General-purpose → all tools, inherits model\n\nNO NESTING: Subagents cannot spawn\nsub-subagents.`},
+  ]
+},
+'3.5':{
+  keyInsight:"Use concrete I/O examples when prose is ambiguous. Test-driven iteration: write tests first, iterate on failures. Interview pattern: Claude asks questions to surface unconsidered issues. Fix interacting problems together, independent ones sequentially.",
+  concepts:[
+    {tag:'CORE',color:'var(--orange)',title:'Iterative Refinement Techniques',content:`4 TECHNIQUES:\n\n1. CONCRETE INPUT/OUTPUT EXAMPLES\n   When prose descriptions produce inconsistent\n   results, provide 2-3 concrete examples:\n   "Input: '2024-03-15' → Output: 'March 15, 2024'"\n   Most effective way to communicate intent.\n\n2. TEST-DRIVEN ITERATION (Red-Green-Refactor)\n   1. Write failing tests first\n   2. Share test failures with Claude\n   3. Claude writes minimal code to pass\n   4. Refactor while keeping tests green\n\n3. INTERVIEW PATTERN\n   Claude asks questions BEFORE implementing:\n   → "What cache invalidation strategy?"\n   → "How to handle failure modes?"\n   Surfaces considerations you didn't anticipate.\n\n4. ISSUE BATCHING:\n   • Interacting problems → fix ALL in one message\n     (fixes may conflict if done separately)\n   • Independent problems → fix sequentially\n     (each fix is self-contained)`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'Automated Test Loop',content:`AUTOMATED TDD LOOP:\n\nwhile ! npm test; do\n  claude -p "Fix the failing tests: $(npm test 2>&1)"\ndone\n\nFeed test failures back to Claude iteratively\nuntil all tests pass.\n\nENFORCE WITH HOOKS:\nPreToolUse hooks can verify test existence\nbefore allowing feature code.\n\nMULTI-AGENT TDD:\nIsolate phases into separate contexts:\n• Subagent 1: write tests\n• Subagent 2: implement code\n• Subagent 3: refactor\nPrevents "context pollution" between phases.\n\nBEST PRACTICES:\n• Provide specific test cases with input/output\n• Include edge cases (null values, empty arrays)\n• Performance requirements in tests\n• Share 2-3 examples of expected transformations`},
+  ]
+},
+'3.6':{
+  keyInsight:"Use -p (--print) for non-interactive CI/CD. --output-format json for structured output. Include prior review findings to avoid duplicates. Use independent review instances (not self-review) for better results.",
+  concepts:[
+    {tag:'CORE',color:'var(--red)',title:'CI/CD Integration — -p Flag',content:`THE -p FLAG (Sample Q10 pattern):\n\nclaude -p "Analyze this PR for security issues"\n→ Non-interactive mode\n→ Processes prompt, outputs to stdout, exits\n→ No TUI, no interactive input\n\nSTRUCTURED OUTPUT:\nclaude -p "Review code" --output-format json\n→ Returns: result, usage, total_cost_usd, duration_ms\n\nJSON SCHEMA ENFORCEMENT:\nclaude -p "..." --json-schema '{...}'\n→ Machine-parseable for automated PR comments\n\nPIPE-BASED WORKFLOWS:\ngit diff | claude -p "Review this diff"\ncat build-error.txt | claude -p "Explain root cause"\n\nPLAN MODE IN CI:\nclaude --permission-mode plan -p "Analyze auth"\n→ Read-only analysis, no changes made`},
+    {tag:'EXAM',color:'var(--red)',title:'Self-Review Limitations & Best Practices',content:`SELF-REVIEW IS WEAK:\n• Model retains reasoning context from generation\n• Less likely to question its own decisions\n• Same session = biased review\n\nSOLUTION: Independent review instance\n• Separate Claude session WITHOUT prior context\n• More effective at catching subtle issues\n\nAVOID DUPLICATE COMMENTS:\n• Include prior review findings when re-running\n• Instruct: "Report only NEW or unaddressed issues"\n\nTEST GENERATION BEST PRACTICES:\n• Provide existing test files in context\n  → Avoids suggesting duplicates\n• Document testing standards in CLAUDE.md:\n  → Valuable test criteria\n  → Available fixtures\n  → Convention patterns\n\nCLAUDE.MD FOR CI:\nAll project context (testing standards, review\ncriteria) should be in CLAUDE.md so CI-invoked\nClaude Code has access to it.`},
+  ]
+}
+};
+
+const SCENARIOS=[
+{id:'cc',title:'Code Generation with Claude Code',desc:'CLAUDE.md, commands, plan mode, iterative refinement',
+ context:'You are using Claude Code to accelerate development. Your team uses it for code generation, refactoring, debugging, and documentation. You need to integrate it with custom commands, CLAUDE.md, and plan mode.',
+ questions:[
+  {q:'A new team member clones the repo but Claude doesn\'t follow the team\'s coding conventions. Other team members don\'t have this issue. Most likely cause?',
+   opts:['Conventions are in ~/.claude/CLAUDE.md (user-level) instead of project-level CLAUDE.md','The CLAUDE.md file is corrupted','The new member has a conflicting personal CLAUDE.md','Claude Code version is outdated'],
+   correct:0,why:'User-level ~/.claude/CLAUDE.md is personal only — NOT shared via git. Move to project-level ./CLAUDE.md for team-wide conventions.',principle:'User-level = personal. Project-level = shared. Check hierarchy with /memory.',section:'3.1'},
+  {q:'Your codebase has React, API, and DB areas with different conventions. Test files are spread throughout. Best way to auto-apply correct conventions?',
+   opts:['.claude/rules/ with YAML frontmatter glob patterns for each file type','Root CLAUDE.md with headers for each area','Skills in .claude/skills/ for each code type','Separate CLAUDE.md in each subdirectory'],
+   correct:0,why:'Path-specific rules with glob patterns (e.g., **/*.test.tsx) auto-apply regardless of directory — essential for test files spread throughout.',principle:'Cross-directory conventions → path-specific rules with globs, not directory CLAUDE.md.',section:'3.3'},
+  {q:'Restructuring a monolith into microservices. Changes affect dozens of files. Which approach?',
+   opts:['Plan mode → explore, understand, design before changes','Direct execution incrementally','Direct execution with upfront instructions','Direct first, plan mode if complex'],
+   correct:0,why:'Complex architectural decisions need exploration and design before committing. Plan mode prevents costly rework.',principle:'Complex multi-file architectural decisions → plan mode.',section:'3.4'},
+  {q:'You want a /review command available to all devs via git. Where to create it?',
+   opts:['.claude/commands/review.md in the project repository','~/.claude/commands/review.md on each dev machine','CLAUDE.md with review instructions','A skill in .claude/skills/review/SKILL.md'],
+   correct:0,why:'Project-scoped commands in .claude/commands/ are version-controlled and available to all devs. D is also valid but A is the simplest.',principle:'Team-shared commands → .claude/commands/ (project-scoped, version controlled).',section:'3.2'},
+]},
+{id:'ci',title:'Claude Code for CI/CD',desc:'Non-interactive mode, structured output, test generation, review',
+ context:'You are integrating Claude Code into your CI/CD pipeline. The system runs automated code reviews, generates test cases, and provides PR feedback.',
+ questions:[
+  {q:'Pipeline runs `claude "Analyze PR"` but hangs waiting for input. Fix?',
+   opts:['Add -p flag: claude -p "Analyze PR for security issues"','Set CLAUDE_HEADLESS=true','Redirect stdin from /dev/null','Add --batch flag'],
+   correct:0,why:'-p (--print) runs non-interactive mode. Others reference non-existent features.',principle:'CI/CD: -p flag. --output-format json for structured output.',section:'3.6'},
+  {q:'Claude Code generated code, then reviewed its own output in the same session. The review found no issues, but a human reviewer found several bugs. Why?',
+   opts:['Self-review is biased — the model retains reasoning context and is less likely to question its own decisions','The review prompt was too vague','Claude Code has a bug in review mode','The human reviewer used different criteria'],
+   correct:0,why:'Self-review is inherently limited. Use an independent review instance without prior reasoning context for better results.',principle:'Self-review is weak. Use independent review instances for quality.',section:'3.6'},
+  {q:'Your CI re-runs reviews after new commits but posts duplicate comments for issues already flagged. Best fix?',
+   opts:['Include prior review findings in context, instruct to report only new or unaddressed issues','Delete all previous comments before re-running','Run review only on changed files','Use a different model for re-reviews'],
+   correct:0,why:'Include prior findings + instruct to report only new/unaddressed issues. This preserves context while avoiding duplicates.',principle:'Include prior findings on re-review to avoid duplicate comments.',section:'3.6'},
+]},
+{id:'dev',title:'Developer Productivity',desc:'Skills, Explore subagent, iterative refinement',
+ context:'You are building developer productivity tools with Claude Code. Engineers need to explore unfamiliar codebases, generate tests, and iterate on implementations.',
+ questions:[
+  {q:'A skill produces 500+ lines of verbose codebase analysis that pollutes the main conversation context. How to fix?',
+   opts:['Add context: fork to the skill frontmatter to run in isolated sub-agent','Increase context window size','Use /compact after skill execution','Split the skill into smaller skills'],
+   correct:0,why:'context: fork runs the skill in an isolated subagent. Only the summary returns, not the verbose output.',principle:'Verbose skills → context: fork for isolation.',section:'3.2'},
+  {q:'Claude produces inconsistent date formatting despite detailed prose instructions. Best approach?',
+   opts:['Provide 2-3 concrete input/output examples showing expected transformation','Add more detailed prose instructions','Use a system prompt override','Create a custom tool for formatting'],
+   correct:0,why:'Concrete I/O examples are the most effective way to communicate expected transformations when prose is interpreted inconsistently.',principle:'Inconsistent results from prose → provide concrete I/O examples.',section:'3.5'},
+  {q:'You need Claude to ask design questions before implementing a cache system in an unfamiliar domain. Which technique?',
+   opts:['Interview pattern — have Claude ask questions to surface considerations you hadn\'t anticipated','Write detailed requirements upfront','Use plan mode only','Provide reference implementations'],
+   correct:0,why:'The interview pattern has Claude ask questions (cache invalidation strategy? failure modes?) before implementing, surfacing unconsidered issues.',principle:'Unfamiliar domain → interview pattern for design discovery.',section:'3.5'},
+]}
+];
+
+const QUIZ=[
+  {q:"New team member doesn't get coding conventions. Other team members do. Most likely cause?",opts:["Conventions are in user-level ~/.claude/CLAUDE.md instead of project-level","CLAUDE.md file corrupted","Conflicting personal config","Outdated Claude Code version"],correct:0,why:"User-level is personal only, not shared via git. Move to project-level for team sharing.",section:"3.1"},
+  {q:"Codebase has different conventions for React, API, DB areas. Test files spread throughout. Best auto-apply approach?",opts:[".claude/rules/ with YAML frontmatter glob patterns","Root CLAUDE.md with section headers","Skills for each code type","Directory CLAUDE.md files"],correct:0,why:"Glob patterns (e.g., **/*.test.tsx) auto-apply regardless of directory location.",section:"3.3"},
+  {q:"Restructuring monolith to microservices. Dozens of files, service boundary decisions. Which approach?",opts:["Plan mode to explore and design before changes","Direct execution incrementally","Direct with upfront instructions","Direct, switch to plan if complex"],correct:0,why:"Complex architectural decisions need exploration first. Plan mode prevents costly rework.",section:"3.4"},
+  {q:"Want /review command available to all devs via git. Where to create?",opts:[".claude/commands/review.md (project-scoped)","~/.claude/commands/review.md (user-scoped)","CLAUDE.md with review instructions",".claude/settings.json"],correct:0,why:"Project-scoped commands are version-controlled and auto-available to all devs.",section:"3.2"},
+  {q:"Pipeline `claude 'Analyze PR'` hangs waiting for input. Fix?",opts:["Add -p flag for non-interactive mode","Set CLAUDE_HEADLESS=true","Redirect stdin from /dev/null","Add --batch flag"],correct:0,why:"-p (--print) runs non-interactive mode. Other options don't exist.",section:"3.6"},
+  {q:"Self-review in same session found no issues, human found bugs. Why?",opts:["Self-review biased — model retains reasoning context","Review prompt too vague","Claude Code bug","Different criteria"],correct:0,why:"Self-review is inherently limited. Use independent instances without prior context.",section:"3.6"},
+  {q:"Skill produces 500+ lines of verbose output polluting context. Fix?",opts:["Add context: fork to run in isolated sub-agent","Increase context window","Use /compact after","Split into smaller skills"],correct:0,why:"context: fork isolates verbose output in subagent. Only summary returns.",section:"3.2"},
+  {q:"Inconsistent date formatting despite detailed prose. Best approach?",opts:["2-3 concrete input/output examples","More detailed prose instructions","System prompt override","Custom formatting tool"],correct:0,why:"Concrete I/O examples most effective when prose produces inconsistent results.",section:"3.5"},
+  {q:"What does /memory command do?",opts:["Lists all loaded CLAUDE.md and config files","Increases available memory","Shows conversation history","Clears context cache"],correct:0,why:"/memory shows which files are loaded. Use to diagnose inconsistent behavior.",section:"3.1"},
+  {q:"CLAUDE.md instructions disappear after /compact. Why?",opts:["Instructions were in conversation only, not in CLAUDE.md file","CLAUDE.md file was deleted","/compact removes all instructions","Bug in Claude Code"],correct:0,why:"CLAUDE.md survives /compact (re-read from disk). Conversation-only instructions are lost.",section:"3.1"},
+  {q:"@import in CLAUDE.md resolves paths relative to:",opts:["The importing file's location","The working directory","The project root","The user's home directory"],correct:0,why:"@import paths resolve relative to the file containing the import statement.",section:"3.1"},
+  {q:"Maximum @import recursion depth?",opts:["5 hops","10 hops","3 hops","Unlimited"],correct:0,why:"@imports can recurse up to 5 hops deep.",section:"3.1"},
+  {q:"Skills differ from CLAUDE.md primarily in that skills are:",opts:["On-demand invocation for specific tasks; CLAUDE.md is always-loaded standards","Faster to execute","More reliable","Only for personal use"],correct:0,why:"Skills = on-demand, task-specific. CLAUDE.md = always-loaded universal standards.",section:"3.2"},
+  {q:"disable-model-invocation: true in skill frontmatter means:",opts:["Claude cannot auto-trigger the skill — must be manually invoked","The skill is disabled","The skill doesn't use the model","The skill runs without tools"],correct:0,why:"Prevents Claude from auto-triggering. Use for destructive ops like deploy/commit.",section:"3.2"},
+  {q:"Path-specific rules load when:",opts:["Claude reads files matching the glob patterns","At session start always","When /memory is called","When the user explicitly loads them"],correct:0,why:"Path-scoped rules trigger when Claude reads matching files, not at startup.",section:"3.3"},
+  {q:"Why prefer .claude/rules/ with globs over directory CLAUDE.md for test conventions?",opts:["Test files are spread across many directories; globs match regardless of location","Rules are faster to load","Rules have higher priority","Rules support more syntax"],correct:0,why:"Directory CLAUDE.md is bound to one directory. Globs match files anywhere in the codebase.",section:"3.3"},
+  {q:"Single-file bug fix with clear stack trace. Use plan mode or direct?",opts:["Direct execution — well-scoped, clear change","Plan mode — always analyze first","Plan mode — bugs need investigation","Direct with --verbose flag"],correct:0,why:"Direct execution for simple, well-understood changes with clear scope.",section:"3.4"},
+  {q:"Explore subagent uses which model?",opts:["Haiku (fast, cheap, read-only)","Opus (most capable)","Same as parent (inherits)","Sonnet (balanced)"],correct:0,why:"Explore uses Haiku for fast, cheap read-only exploration. Write/Edit tools are denied.",section:"3.4"},
+  {q:"Can subagents spawn sub-subagents?",opts:["No — no nesting allowed","Yes, up to 3 levels","Yes, unlimited","Only with special config"],correct:0,why:"Subagents cannot spawn other subagents. No nesting.",section:"3.4"},
+  {q:"Claude asks design questions before implementing a cache system. Which technique?",opts:["Interview pattern","Test-driven iteration","Prompt chaining","Few-shot prompting"],correct:0,why:"Interview pattern: Claude asks questions to surface considerations you hadn't anticipated.",section:"3.5"},
+  {q:"Multiple bugs that interact with each other. Fix how?",opts:["All in a single detailed message — fixes may conflict if separate","One at a time sequentially","Most critical first","Automated batch fix"],correct:0,why:"Interacting problems → fix together. Independent problems → fix sequentially.",section:"3.5"},
+  {q:"CI reviews post duplicate comments on re-runs after new commits. Fix?",opts:["Include prior findings, instruct to report only new/unaddressed issues","Delete previous comments first","Review only changed files","Use different model"],correct:0,why:"Include prior findings + instruct to flag only new issues to avoid duplicates.",section:"3.6"},
+  {q:"--output-format json in CI returns which fields?",opts:["result, usage, total_cost_usd, duration_ms","Just the text output","result and error","status and message"],correct:0,why:"JSON output includes result, usage stats, cost, and duration for automation.",section:"3.6"},
+  {q:"Best way to improve test generation quality in CI?",opts:["Document testing standards and available fixtures in CLAUDE.md","Use a larger model","Increase max_tokens","Run multiple passes"],correct:0,why:"CLAUDE.md provides project context (standards, fixtures, conventions) to CI-invoked Claude.",section:"3.6"},
+];
+
+const DECISIONS=[
+  {situation:'New team member missing conventions',category:'Hierarchy',answer:'Move instructions from user-level to project-level CLAUDE.md',wrong:'Reinstall Claude Code or share user config',reasoning:'User-level is personal only (not in git). Project-level is shared via version control.'},
+  {situation:'CLAUDE.md is 500+ lines',category:'Organization',answer:'Split into .claude/rules/ files or use @import',wrong:'Keep in single file with better formatting',reasoning:'Target under 200 lines. Use rules or imports for modularity.'},
+  {situation:'Test conventions for files spread across codebase',category:'Rules',answer:'.claude/rules/ with glob patterns like **/*.test.tsx',wrong:'Directory CLAUDE.md in each test directory',reasoning:'Globs match regardless of directory. Directory CLAUDE.md is location-bound.'},
+  {situation:'Complex architectural restructuring',category:'Mode',answer:'Plan mode to explore and design before changes',wrong:'Direct execution with detailed upfront instructions',reasoning:'Plan mode enables safe exploration. Direct assumes you know the code.'},
+  {situation:'Single-file bug fix with clear stack trace',category:'Mode',answer:'Direct execution — clear scope, well-understood',wrong:'Plan mode — always analyze first',reasoning:'Simple changes don\'t need plan mode. Direct is appropriate for clear scope.'},
+  {situation:'Skill produces verbose output polluting context',category:'Skills',answer:'context: fork in skill frontmatter',wrong:'/compact after skill runs',reasoning:'context: fork isolates verbose output in subagent. /compact loses context details.'},
+  {situation:'Team-shared /deploy command',category:'Commands',answer:'.claude/commands/deploy.md (project-scoped)',wrong:'~/.claude/commands/deploy.md (personal)',reasoning:'Project-scoped commands are version-controlled and auto-available.'},
+  {situation:'Prose instructions produce inconsistent results',category:'Refinement',answer:'2-3 concrete input/output examples',wrong:'More detailed prose instructions',reasoning:'Concrete examples are the most effective way to communicate transformations.'},
+  {situation:'CI pipeline hangs waiting for input',category:'CI/CD',answer:'-p flag for non-interactive mode',wrong:'CLAUDE_HEADLESS env var',reasoning:'-p (--print) is the documented non-interactive flag.'},
+  {situation:'Self-review finds no issues but humans find bugs',category:'CI/CD',answer:'Independent review instance (no prior context)',wrong:'Better self-review prompt',reasoning:'Self-review is biased by retained reasoning context.'},
+  {situation:'Instructions disappear after /compact',category:'Hierarchy',answer:'Write them to CLAUDE.md (survives compaction)',wrong:'Use longer context window',reasoning:'CLAUDE.md is re-read from disk on compact. Conversation instructions are lost.'},
+  {situation:'Destructive skill (deploy/commit) auto-triggering',category:'Skills',answer:'disable-model-invocation: true in frontmatter',wrong:'Remove from .claude/skills/',reasoning:'Prevents Claude from auto-triggering while keeping manual /invoke available.'},
+];
+
+/* UI COMPONENTS */
+const Icon=({d,size=20,color='currentColor'})=>h('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:color,strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round'},h('path',{d}));
+const Tag=({color,children})=>h('span',{style:{fontSize:10,padding:'2px 8px',borderRadius:4,background:color+'1a',color,fontWeight:700,letterSpacing:'.04em',fontFamily:'var(--mono)',whiteSpace:'nowrap'}},children);
+const WeightDots=({weight,max=5})=>h('div',{style:{display:'flex',gap:3,alignItems:'center'}},...Array.from({length:max},(_,i)=>h('div',{key:i,style:{width:8,height:8,borderRadius:'50%',background:i<weight?'var(--accent)':'var(--border)'}})),h('span',{style:{fontSize:10,color:'var(--textDim)',marginLeft:4,fontFamily:'var(--mono)'}},weight>=4?'HIGH':weight>=3?'MED':'LOW'));
+const CodeBlock=({children})=>h('pre',{style:{margin:0,padding:14,background:'var(--code)',borderRadius:8,color:'var(--codeText)',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap',fontFamily:'var(--mono)',border:'1px solid var(--border)',overflowX:'auto'}},children);
+function ConceptCard({concept,defaultOpen=false}){const[open,setOpen]=useState(defaultOpen);return h('div',{style:{background:'var(--card)',border:`1px solid ${open?concept.color+'55':'var(--border)'}`,borderLeft:`3px solid ${concept.color}`,borderRadius:'var(--radius)',marginBottom:10}},h('div',{onClick:()=>setOpen(!open),style:{padding:'12px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},h('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1}},h(Tag,{color:concept.color},concept.tag),h('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},concept.title)),h('span',{style:{color:'var(--textDim)',fontSize:14,transform:open?'rotate(180deg)':'none',transition:'transform .2s'}},'▾')),open&&h('div',{className:'fade-in',style:{padding:'0 16px 16px'}},h(CodeBlock,null,concept.content)));}
+
+/* HIERARCHY DIAGRAM */
+function HierarchyDiagram(){
+  const levels=[{label:'Managed Policy',sub:'Org-wide (highest priority)',color:'var(--red)',y:10},{label:'User',sub:'~/.claude/CLAUDE.md (personal)',color:'var(--purple)',y:60},{label:'Project',sub:'./CLAUDE.md (team, git)',color:'var(--accent)',y:110},{label:'Directory',sub:'./src/CLAUDE.md (on-demand)',color:'var(--cyan)',y:160}];
+  return h('svg',{viewBox:'0 0 380 210',style:{width:'100%',maxWidth:380,display:'block',margin:'0 auto 16px'}},
+    h('defs',null,h('marker',{id:'a',markerWidth:8,markerHeight:6,refX:8,refY:3,orient:'auto'},h('path',{d:'M0 0L8 3L0 6Z',fill:'var(--textDim)'}))),
+    ...levels.map((l,i)=>h('g',{key:i},
+      h('rect',{x:60,y:l.y,width:260,height:38,rx:6,fill:'var(--card)',stroke:l.color,strokeWidth:1.5}),
+      h('text',{x:190,y:l.y+17,textAnchor:'middle',fill:l.color,fontSize:11,fontWeight:700},l.label),
+      h('text',{x:190,y:l.y+30,textAnchor:'middle',fill:'var(--textDim)',fontSize:8,fontFamily:'var(--mono)'},l.sub),
+      i<3&&h('line',{x1:190,y1:l.y+38,x2:190,y2:levels[i+1].y,stroke:'var(--textDim)',strokeWidth:1,markerEnd:'url(#a)'}),
+    )),
+    h('text',{x:340,y:30,fill:'var(--textDim)',fontSize:8,fontFamily:'var(--mono)'},'↑ Higher'),
+    h('text',{x:340,y:45,fill:'var(--textDim)',fontSize:8,fontFamily:'var(--mono)'},'priority'),
+  );
+}
+
+/* STUDY VIEW */
+function StudyView({completed,onToggle}){
+  const[active,setActive]=useState(null);const section=active?TS.find(t=>t.id===active):null;const content=active?SC[active]:null;const pct=Math.round(completed.size/TS.length*100);
+  if(section&&content){
+    const diagram=active==='3.1'?h(HierarchyDiagram):null;
+    return h('div',{className:'fade-in'},
+      h('button',{onClick:()=>setActive(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:16,display:'flex',alignItems:'center',gap:4}},h(Icon,{d:'M15 19l-7-7 7-7',size:16}),'Back'),
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,flexWrap:'wrap',gap:8}},h('div',{style:{display:'flex',alignItems:'center',gap:10}},h('div',{style:{width:40,height:40,borderRadius:10,background:section.color+'1a',display:'flex',alignItems:'center',justifyContent:'center'}},h(Icon,{d:section.icon,color:section.color,size:22})),h('h2',{style:{color:'var(--text)',fontSize:20,fontFamily:'var(--display)',fontWeight:700,margin:0}},`${section.id}: ${section.title}`)),h(WeightDots,{weight:section.weight})),
+      h('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(245,158,11,.2)',borderRadius:'var(--radius)',padding:14,marginBottom:20}},h('p',{style:{color:'var(--text)',margin:0,fontSize:13,lineHeight:1.6,fontWeight:500}},h('strong',{style:{color:'var(--accent2)'}},'Key Insight: '),content.keyInsight)),
+      diagram,...content.concepts.map((c,i)=>h(ConceptCard,{key:i,concept:c,defaultOpen:i===0})),
+      h('button',{onClick:()=>onToggle(section.id),style:{marginTop:12,padding:'10px 20px',background:completed.has(section.id)?'var(--greenDim)':'var(--accent)',color:completed.has(section.id)?'var(--green)':'#000',border:completed.has(section.id)?'1px solid var(--greenBorder)':'none',borderRadius:8,fontSize:13,fontWeight:600}},completed.has(section.id)?'✓ Studied':'Mark Complete')
+    );
+  }
+  return h('div',null,
+    h('div',{style:{marginBottom:20}},h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--textDim)',marginBottom:4}},h('span',null,'Progress'),h('span',null,`${completed.size}/${TS.length} (${pct}%)`)),h('div',{style:{height:5,background:'var(--border)',borderRadius:3}},h('div',{style:{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:3,transition:'width .4s'}}))),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:8}},...TS.map((s,i)=>h('div',{key:s.id,onClick:()=>setActive(s.id),className:'slide-in',style:{animationDelay:`${i*40}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}},h('div',{style:{display:'flex',alignItems:'center',gap:12,flex:1}},h('div',{style:{width:36,height:36,borderRadius:8,background:s.color+'15',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},h(Icon,{d:s.icon,color:s.color,size:18})),h('div',null,h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:2}},h('span',{style:{color:'var(--text)',fontWeight:600,fontSize:14}},s.id),h('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},s.title),completed.has(s.id)&&h('span',{style:{color:'var(--green)'}},'✓')),h('div',{style:{color:'var(--textDim)',fontSize:12}},`${SC[s.id].concepts.length} concepts`))),h('div',{style:{display:'flex',alignItems:'center',gap:10,flexShrink:0}},h(WeightDots,{weight:s.weight}),h('span',{style:{color:'var(--textDim)'}},'→')))))
+  );
+}
+
+/* SCENARIOS VIEW */
+function ScenariosView(){const[sc,setSc]=useState(null);const[qi,setQi]=useState(0);const[pk,setPk]=useState(null);const[sc2,setSc2]=useState(0);
+  if(!sc)return h('div',null,h('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16}},'Practice Domain 3 scenarios in exam format.'),h('div',{style:{display:'flex',flexDirection:'column',gap:10}},...SCENARIOS.map((s,i)=>h('div',{key:s.id,onClick:()=>{setSc(s);setQi(0);setPk(null);setSc2(0);},className:'fade-in',style:{animationDelay:`${i*60}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:20,cursor:'pointer'}},h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},h('h3',{style:{color:'var(--text)',fontSize:16,fontWeight:600,margin:0}},s.title),h(Tag,{color:'var(--accent)'},`${s.questions.length} Q`)),h('p',{style:{color:'var(--textDim)',fontSize:12,margin:0}},s.desc)))));
+  if(qi>=sc.questions.length){const p=Math.round(sc2/sc.questions.length*100);return h('div',{className:'fade-in',style:{textAlign:'center',padding:'40px 20px'}},h('div',{style:{fontSize:56,marginBottom:12}},p>=80?'🎯':p>=60?'📊':'📚'),h('h2',{style:{color:'var(--text)',margin:'0 0 8px'}},`${sc2}/${sc.questions.length} (${p}%)`),h('div',{style:{display:'flex',gap:10,justifyContent:'center',marginTop:20}},h('button',{onClick:()=>{setQi(0);setPk(null);setSc2(0);},style:{padding:'10px 20px',background:'var(--accent)',color:'#000',border:'none',borderRadius:8,fontWeight:600}},'Retry'),h('button',{onClick:()=>setSc(null),style:{padding:'10px 20px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8}},'All')));}
+  const q=sc.questions[qi];
+  return h('div',{className:'fade-in'},h('button',{onClick:()=>setSc(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:12,display:'flex',alignItems:'center',gap:4}},h(Icon,{d:'M15 19l-7-7 7-7',size:16}),'Back'),
+    h('div',{style:{background:'var(--card2)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:16,border:'1px solid var(--border)'}},h('h3',{style:{color:'var(--accent2)',fontSize:12,margin:'0 0 6px',fontFamily:'var(--mono)'}},'SCENARIO'),h('h2',{style:{color:'var(--text)',fontSize:18,margin:'0 0 8px',fontWeight:600}},sc.title),h('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},sc.context)),
+    h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:12}},h(Tag,{color:'var(--cyan)'},`Q${qi+1}/${sc.questions.length}`),h('span',{style:{color:'var(--green)',fontSize:13,fontWeight:600}},`${sc2}/${qi}`)),
+    h('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},h('div',{style:{height:'100%',width:`${((qi+(pk!==null?1:0))/sc.questions.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:2,transition:'width .3s'}})),
+    h('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:8}},...q.opts.map((o,i)=>{let bg='var(--card)',bd='var(--border)';if(pk!==null){if(i===q.correct){bg='var(--greenDim)';bd='var(--green)';}else if(i===pk){bg='var(--redDim)';bd='var(--red)';}}return h('div',{key:i,onClick:()=>{if(pk!==null)return;setPk(i);if(i===q.correct)setSc2(s=>s+1);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bd}`,borderRadius:8,cursor:pk===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5}},h('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),o);})),
+    pk!==null&&h('div',{className:'fade-in',style:{marginTop:16}},h('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,padding:14,marginBottom:12}},h('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 4px',fontSize:11,fontFamily:'var(--mono)'}},'EXPLANATION'),h('p',{style:{color:'var(--textMid)',margin:'0 0 10px',fontSize:13,lineHeight:1.6}},q.why),h('div',{style:{background:'var(--greenDim)',border:'1px solid var(--greenBorder)',borderRadius:6,padding:'8px 12px'}},h('p',{style:{color:'var(--green)',margin:0,fontSize:12,fontWeight:600}},q.principle))),h('button',{onClick:()=>{if(qi<sc.questions.length-1){setQi(i=>i+1);setPk(null);}else setQi(sc.questions.length);},style:{padding:'10px 20px',background:'var(--accent)',color:'#000',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},qi<sc.questions.length-1?'Next →':'Results'))
+  );
+}
+
+/* DECISION VIEW */
+function DecisionView(){const[sel,setSel]=useState(null);const cats=[...new Set(DECISIONS.map(d=>d.category))];const[f,setF]=useState('All');const fd=f==='All'?DECISIONS:DECISIONS.filter(d=>d.category===f);
+  return h('div',null,h('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16}},'Click any situation to see the correct approach.'),
+    h('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}},h('button',{onClick:()=>setF('All'),style:{padding:'6px 12px',background:f==='All'?'var(--accent)':'var(--card)',color:f==='All'?'#000':'var(--textMid)',border:`1px solid ${f==='All'?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},'All'),...cats.map(c=>h('button',{key:c,onClick:()=>setF(c),style:{padding:'6px 12px',background:f===c?'var(--accent)':'var(--card)',color:f===c?'#000':'var(--textMid)',border:`1px solid ${f===c?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},c))),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:8}},...fd.map((d,i)=>h('div',{key:i,onClick:()=>setSel(sel===i?null:i),className:'fade-in',style:{animationDelay:`${i*30}ms`,background:'var(--card)',border:`1px solid ${sel===i?'var(--accent)44':'var(--border)'}`,borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer'}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},h('div',{style:{display:'flex',alignItems:'center',gap:8}},h(Tag,{color:'var(--cyan)'},d.category),h('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},d.situation)),h('span',{style:{color:'var(--textDim)',transform:sel===i?'rotate(180deg)':'none',transition:'transform .2s'}},'▾')),
+      sel===i&&h('div',{className:'fade-in',style:{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+        h('div',{style:{background:'var(--greenDim)',border:'1px solid var(--greenBorder)',borderRadius:8,padding:12}},h('div',{style:{color:'var(--green)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'CORRECT'),h('p',{style:{color:'var(--text)',fontSize:13,margin:0,fontWeight:500}},d.answer)),
+        h('div',{style:{background:'var(--redDim)',border:'1px solid var(--redBorder)',borderRadius:8,padding:12}},h('div',{style:{color:'var(--red)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'WRONG'),h('p',{style:{color:'var(--text)',fontSize:13,margin:0}},d.wrong)),
+        h('div',{style:{gridColumn:'1/-1',background:'var(--bg3)',borderRadius:8,padding:12}},h('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},h('strong',{style:{color:'var(--accent2)'}},'Why: '),d.reasoning)))
+    ))));}
+
+/* QUIZ VIEW */
+function QuizView(){const[mode,setMode]=useState('setup');const[sf,setSf]=useState('all');const[qs,setQs]=useState([]);const[idx,setIdx]=useState(0);const[pk,setPk]=useState(null);const[sc,setSc]=useState(0);const[ans,setAns]=useState(0);const[answers,setAnswers]=useState([]);
+  function start(){let q=sf==='all'?[...QUIZ]:QUIZ.filter(x=>x.section===sf);for(let i=q.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[q[i],q[j]]=[q[j],q[i]];}setQs(q);setIdx(0);setPk(null);setSc(0);setAns(0);setAnswers([]);setMode('quiz');}
+  if(mode==='setup'){const secs=['all',...TS.map(t=>t.id)];const counts={};secs.forEach(s=>{counts[s]=s==='all'?QUIZ.length:QUIZ.filter(q=>q.section===s).length;});
+    return h('div',{className:'fade-in'},h('h3',{style:{color:'var(--text)',fontSize:18,marginBottom:8,fontFamily:'var(--display)'}},'Exam Simulator'),h('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:20}},`${QUIZ.length} questions across 6 task statements.`),
+      h('div',{style:{display:'flex',flexDirection:'column',gap:6,marginBottom:20}},...secs.map(s=>h('div',{key:s,onClick:()=>setSf(s),style:{padding:'10px 14px',background:sf===s?'var(--accentDim)':'var(--card)',border:`1px solid ${sf===s?'var(--accent)44':'var(--border)'}`,borderRadius:8,cursor:'pointer',display:'flex',justifyContent:'space-between'}},h('span',{style:{color:sf===s?'var(--accent2)':'var(--text)',fontWeight:500,fontSize:14}},s==='all'?'All Sections':`${s}: ${TS.find(t=>t.id===s)?.title||''}`),h(Tag,{color:counts[s]?'var(--cyan)':'var(--textDim)'},`${counts[s]} Q`)))),
+      h('button',{onClick:start,disabled:!counts[sf],style:{padding:'12px 24px',background:counts[sf]?'var(--accent)':'var(--border)',color:'#000',border:'none',borderRadius:8,fontSize:14,fontWeight:600,width:'100%'}},`Start (${counts[sf]} Q)`));}
+  if(mode==='review'){const bs={};answers.forEach(a=>{if(!bs[a.s])bs[a.s]={c:0,t:0};bs[a.s].t++;if(a.ok)bs[a.s].c++;});const p=Math.round(sc/qs.length*100);
+    return h('div',{className:'fade-in'},h('div',{style:{textAlign:'center',marginBottom:24}},h('div',{style:{fontSize:56,marginBottom:8}},p>=80?'🎯':p>=60?'📊':'📚'),h('h2',{style:{color:'var(--text)',margin:'0 0 4px'}},`${sc}/${qs.length} (${p}%)`),h('p',{style:{color:p>=72?'var(--green)':'var(--red)',fontSize:14}},p>=72?'Above 72% threshold':'Below 72% threshold')),
+      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:8,marginBottom:20}},...Object.entries(bs).map(([s,d])=>{const pct=Math.round(d.c/d.t*100);return h('div',{key:s,style:{background:'var(--card)',borderRadius:8,padding:12,border:'1px solid var(--border)'}},h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},h('span',{style:{color:'var(--text)',fontWeight:600,fontSize:12}},s),h('span',{style:{color:pct>=72?'var(--green)':'var(--red)',fontSize:12,fontWeight:600}},`${pct}%`)),h('div',{style:{height:4,background:'var(--border)',borderRadius:2}},h('div',{style:{height:'100%',width:`${pct}%`,background:pct>=72?'var(--green)':'var(--red)',borderRadius:2}})));})),
+      h('div',{style:{display:'flex',gap:10}},h('button',{onClick:()=>setMode('setup'),style:{flex:1,padding:'10px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8,fontWeight:600}},'New'),h('button',{onClick:start,style:{flex:1,padding:'10px',background:'var(--accent)',color:'#000',border:'none',borderRadius:8,fontWeight:600}},'Retry')));}
+  if(idx>=qs.length){setMode('review');return null;}const q=qs[idx];
+  return h('div',{className:'fade-in'},
+    h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:12}},h('div',{style:{display:'flex',gap:8}},h(Tag,{color:'var(--cyan)'},`Q${idx+1}/${qs.length}`),h(Tag,{color:'var(--accent)'},q.section)),h('div',{style:{display:'flex',gap:12,alignItems:'center'}},h('span',{style:{color:'var(--green)',fontSize:13,fontWeight:600}},`${sc}/${ans}`),h('button',{onClick:()=>setMode('setup'),style:{background:'none',border:'1px solid var(--border)',color:'var(--textDim)',borderRadius:6,padding:'4px 10px',fontSize:11}},'Exit'))),
+    h('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},h('div',{style:{height:'100%',width:`${((idx+(pk!==null?1:0))/qs.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:2,transition:'width .3s'}})),
+    h('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:8}},...q.opts.map((o,i)=>{let bg='var(--card)',bd='var(--border)';if(pk!==null){if(i===q.correct){bg='var(--greenDim)';bd='var(--green)';}else if(i===pk){bg='var(--redDim)';bd='var(--red)';}}return h('div',{key:i,onClick:()=>{if(pk!==null)return;setPk(i);setAns(a=>a+1);if(i===q.correct)setSc(s=>s+1);setAnswers(a=>[...a,{s:q.section,ok:i===q.correct}]);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bd}`,borderRadius:8,cursor:pk===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5}},h('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),o);})),
+    pk!==null&&h('div',{className:'fade-in',style:{marginTop:16}},h('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,padding:14}},h('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 4px',fontSize:11,fontFamily:'var(--mono)'}},'EXPLANATION'),h('p',{style:{color:'var(--textMid)',margin:0,fontSize:13,lineHeight:1.6}},q.why)),h('button',{onClick:()=>{setIdx(i=>i+1);setPk(null);},style:{marginTop:10,padding:'10px 20px',background:'var(--accent)',color:'#000',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},idx<qs.length-1?'Next →':'Results')));}
+
+/* REFERENCE VIEW */
+function ReferenceView(){
+  const tables=[
+    {title:'CLAUDE.md Hierarchy',color:'var(--accent)',rows:[['Scope','Location','Shared?','Loads'],['Managed','System path','Org-wide','Always (highest)'],['User','~/.claude/CLAUDE.md','No (personal)','Always'],['Project','./CLAUDE.md','Yes (git)','Always'],['Directory','./src/CLAUDE.md','Yes (git)','On-demand (lazy)']]},
+    {title:'Skill Frontmatter',color:'var(--purple)',rows:[['Field','Values','Purpose'],['context','fork','Isolated subagent execution'],['allowed-tools','Read, Grep, ...','Restrict tool access'],['argument-hint','[topic]','Prompt for missing args'],['disable-model-invocation','true','Prevent auto-trigger'],['agent','Explore','Use specific subagent type']]},
+    {title:'Plan Mode vs Direct',color:'var(--green)',rows:[['Use Plan Mode','Use Direct Execution'],['Complex multi-step','Single-file bug fix'],['Architectural decisions','Simple feature add'],['Multi-file refactoring','Clear stack trace fix'],['Multiple valid approaches','Well-understood scope'],['Microservice restructuring','Date validation add']]},
+    {title:'CI/CD Commands',color:'var(--red)',rows:[['Command','Purpose'],['claude -p "..."','Non-interactive mode'],['--output-format json','Structured output'],['--json-schema \'...\'','Schema-enforced output'],['--permission-mode plan','Read-only analysis'],['git diff | claude -p','Pipe-based review']]},
+  ];
+  const traps=[
+    {title:'User vs Project',desc:'User-level (~/.claude) is personal only. Not shared via git. New team member issues? Check hierarchy.'},
+    {title:'@import vs rules',desc:'@import loads eagerly at launch. .claude/rules/ can be path-scoped and load conditionally.'},
+    {title:'context: fork',desc:'Isolates verbose skill output in subagent. Without it, output pollutes main conversation.'},
+    {title:'Glob > Directory',desc:'Path-specific rules with globs work across directories. Directory CLAUDE.md is location-bound.'},
+    {title:'Plan vs Direct',desc:'Complex architectural = plan mode. Simple clear-scope = direct. Don\'t over-plan simple fixes.'},
+    {title:'/compact survival',desc:'CLAUDE.md survives /compact (re-read from disk). Conversation-only instructions are lost.'},
+    {title:'Self-review bias',desc:'Same session retains reasoning context. Use independent instance for quality review.'},
+    {title:'-p flag',desc:'Non-interactive CI mode. CLAUDE_HEADLESS and --batch don\'t exist.'},
+  ];
+  const sources=[{name:'Claude Code Memory',url:'https://docs.anthropic.com/en/docs/claude-code/memory',desc:'CLAUDE.md hierarchy, @import, .claude/rules/, /memory'},{name:'Claude Code Skills',url:'https://code.claude.com/docs/en/skills',desc:'Skills system, frontmatter, context:fork'},{name:'Claude Code Sub-agents',url:'https://code.claude.com/docs/en/sub-agents',desc:'Explore, Plan, General-purpose subagents'},{name:'Claude Code CLI',url:'https://docs.anthropic.com/en/docs/claude-code/cli-usage',desc:'-p flag, --output-format, --json-schema'},{name:'Claude Code Workflows',url:'https://docs.anthropic.com/en/docs/claude-code/common-workflows',desc:'Plan mode, TDD, interview pattern'}];
+  return h('div',{className:'fade-in'},
+    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(380px,1fr))',gap:12,marginBottom:20}},...tables.map(t=>h('div',{key:t.title,style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},h('h4',{style:{color:t.color,margin:'0 0 10px',fontSize:14,fontFamily:'var(--display)'}},t.title),h('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12,fontFamily:'var(--mono)'}},h('thead',null,h('tr',null,...t.rows[0].map((x,i)=>h('th',{key:i,style:{textAlign:'left',padding:'4px 6px',color:'var(--textDim)',borderBottom:'1px solid var(--border)',fontSize:10,fontWeight:600}},x)))),h('tbody',null,...t.rows.slice(1).map((r,i)=>h('tr',{key:i},...r.map((c,j)=>h('td',{key:j,style:{padding:'5px 6px',color:j===0?'var(--text)':'var(--textMid)',borderBottom:'1px solid var(--border)',fontSize:11}},c))))))))),
+    h('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:20,border:'1px solid var(--redBorder)'}},h('h4',{style:{color:'var(--red)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Top 8 Exam Traps — Domain 3'),...traps.map((t,i)=>h('div',{key:i,style:{marginBottom:8,fontSize:13}},h('span',{style:{color:'var(--text)',fontWeight:600}},`${i+1}. ${t.title}: `),h('span',{style:{color:'var(--textMid)'}},t.desc)))),
+    h('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},h('h4',{style:{color:'var(--accent2)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Reference Sources'),...sources.map((s,i)=>h('div',{key:i,style:{marginBottom:10,paddingBottom:10,borderBottom:i<sources.length-1?'1px solid var(--border)':'none'}},h('a',{href:s.url,target:'_blank',rel:'noopener',style:{color:'var(--cyan)',fontSize:13,fontWeight:500,textDecoration:'none'}},s.name,' ↗'),h('p',{style:{color:'var(--textDim)',fontSize:12,margin:'2px 0 0'}},s.desc))))
+  );}
+
+/* MAIN APP */
+function App(){const[view,setView]=useState('study');const[completed,setCompleted]=useState(()=>{try{const s=localStorage.getItem('ccaf-d3-completed');return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
+  useEffect(()=>{localStorage.setItem('ccaf-d3-completed',JSON.stringify([...completed]));},[completed]);
+  const toggle=(id)=>{setCompleted(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});};
+  return h('div',null,
+    h('div',{style:{marginBottom:20}},h('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:8,flexWrap:'wrap'}},h(Tag,{color:'var(--accent)'},'DOMAIN 3'),h(Tag,{color:'var(--orange)'},'20% OF EXAM')),h('h1',{style:{fontSize:28,margin:'8px 0 4px',fontWeight:800,fontFamily:'var(--display)',letterSpacing:'-0.02em',lineHeight:1.2}},'Claude Code Configuration',h('br'),h('span',{style:{color:'var(--accent2)'}},'& Workflows')),h('p',{style:{color:'var(--textDim)',margin:0,fontSize:13}},'Claude Certified Architect — Foundations — Interactive Study Guide')),
+    h('div',{style:{display:'flex',gap:4,marginBottom:24,overflowX:'auto',paddingBottom:4}},...VIEWS.map(v=>h('button',{key:v,onClick:()=>setView(v),style:{padding:'8px 14px',background:view===v?'var(--accent)':'var(--card)',color:view===v?'#000':'var(--textMid)',border:`1px solid ${view===v?'var(--accent)':'var(--border)'}`,borderRadius:8,fontSize:13,fontWeight:view===v?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6}},h(Icon,{d:VI[v],size:16,color:view===v?'#000':'var(--textDim)'}),VL[v]))),
+    view==='study'&&h(StudyView,{completed,onToggle:toggle}),view==='scenarios'&&h(ScenariosView),view==='decide'&&h(DecisionView),view==='quiz'&&h(QuizView),view==='reference'&&h(ReferenceView),
+    h('div',{style:{marginTop:48,paddingTop:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8}},h('span',{style:{color:'var(--textDim)',fontSize:10}},'Domain 3 of 5 — CCA-F Study Guide'),h('span',{style:{color:'var(--textDim)',fontSize:10}},'Sources: Anthropic Docs, Claude Code Memory, Skills, CLI Reference'))
+  );}
+createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>

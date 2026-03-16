@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCA-F Domain 1 — Agentic Architecture &amp; Orchestration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#ffffff;--bg2:#f8fafc;--bg3:#f1f5f9;--card:#ffffff;--card2:#f8fafc;
+--accent:#1d4ed8;--accent2:#2563eb;--accentDim:rgba(37,99,235,.05);
+--green:#059669;--greenDim:rgba(5,150,105,.05);--greenBorder:rgba(5,150,105,.2);
+--red:#dc2626;--redDim:rgba(220,38,38,.04);--redBorder:rgba(220,38,38,.15);
+--yellow:#b45309;--yellowDim:rgba(180,83,9,.05);
+--cyan:#0e7490;--cyanDim:rgba(14,116,144,.05);
+--orange:#c2410c;
+--text:#0f172a;--textMid:#475569;--textDim:#94a3b8;
+--border:#e2e8f0;--border2:#cbd5e1;
+--code:#f8fafc;--codeText:#1e293b;
+--font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;--display:'Newsreader',Georgia,serif;
+--radius:10px;--radius-lg:14px;
+}
+html{font-size:15px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+#root{max-width:920px;margin:0 auto;padding:24px 20px 80px}
+button{cursor:pointer;font-family:var(--font);transition:all .15s}
+pre,code{font-family:var(--mono)}
+::selection{background:var(--accent);color:#fff}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes dash{to{stroke-dashoffset:0}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 3px var(--accent))}50%{filter:drop-shadow(0 0 8px var(--accent))}}
+.fade-in{animation:fadeIn .35s ease-out both}
+.slide-in{animation:slideIn .3s ease-out both}
+</style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client","react/jsx-runtime":"https://esm.sh/react@18.3.1/jsx-runtime"}}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import React,{useState,useEffect,useRef,useCallback,useMemo} from 'react';
+import {createRoot} from 'react-dom/client';
+
+/* ═══════════════════════════════════════════════
+   CONSTANTS & DATA
+   ═══════════════════════════════════════════════ */
+
+const VIEWS = ['study','scenarios','decide','quiz','reference'];
+const VIEW_LABELS = {study:'Study Guide',scenarios:'Scenarios',decide:'Decision Tool',quiz:'Exam Sim',reference:'Quick Ref'};
+const VIEW_ICONS = {study:'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z',scenarios:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',decide:'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',quiz:'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z',reference:'M4 6h16M4 10h16M4 14h16M4 18h16'};
+
+const TASK_STATEMENTS = [
+  {id:'1.1',title:'Agentic Loop Lifecycle',icon:'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',weight:4,color:'var(--cyan)'},
+  {id:'1.2',title:'Coordinator-Subagent Patterns',icon:'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9',weight:5,color:'var(--green)'},
+  {id:'1.3',title:'Subagent Config & Context',icon:'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',weight:5,color:'var(--accent2)'},
+  {id:'1.4',title:'Enforcement & Handoff',icon:'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',weight:5,color:'var(--red)'},
+  {id:'1.5',title:'Agent SDK Hooks',icon:'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',weight:4,color:'var(--orange)'},
+  {id:'1.6',title:'Task Decomposition',icon:'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z',weight:3,color:'var(--yellow)'},
+  {id:'1.7',title:'Session Management',icon:'M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4',weight:2,color:'var(--textMid)'},
+];
+
+/* ═══════════════════════════════════════════════
+   SECTION CONTENT DATA — 7 Task Statements
+   ═══════════════════════════════════════════════ */
+
+const SECTION_CONTENT = {
+'1.1': {
+  keyInsight: "The agentic loop is controlled ENTIRELY by stop_reason. The model decides when to stop — not your code.",
+  concepts: [
+    {tag:'CORE',color:'var(--cyan)',title:'stop_reason Values',content:`Every API response includes stop_reason — this is THE loop control signal:\n\n• "tool_use" → Claude wants tools. Execute them, append results, loop.\n• "end_turn" → Claude is DONE. Return final response.\n• "max_tokens" → Output TRUNCATED (not finished). Response is incomplete.\n• "stop_sequence" → Hit your custom stop sequence.\n• "pause_turn" → Server-side iteration limit. NOT terminal — continue!\n\nEXAM TIP: "end_turn" and "tool_use" are the two you'll see most. "pause_turn" is a trap answer — it is NOT terminal.`},
+    {tag:'CODE',color:'var(--accent)',title:'Agentic Loop Implementation',content:`import anthropic\nclient = anthropic.Anthropic()\n\ndef run_agent(user_msg, tools, system):\n    messages = [{"role": "user", "content": user_msg}]\n    while True:\n        response = client.messages.create(\n            model="claude-sonnet-4-6", max_tokens=4096,\n            system=system, tools=tools, messages=messages\n        )\n        messages.append({"role":"assistant","content":response.content})\n\n        if response.stop_reason == "end_turn":\n            return response  # Done\n\n        if response.stop_reason == "tool_use":\n            tool_results = []\n            for block in response.content:\n                if block.type == "tool_use":\n                    result = execute_tool(block.name, block.input)\n                    tool_results.append({\n                        "type": "tool_result",\n                        "tool_use_id": block.id,  # MUST match\n                        "content": str(result)\n                    })\n            messages.append({"role":"user","content":tool_results})`},
+    {tag:'TRAP',color:'var(--red)',title:'Anti-Patterns (Wrong Answers)',content:`These appear as distractors on the exam:\n\n✗ Parsing text for completion: if "I'm done" in response.text\n   → stop_reason drives the loop, not text content\n\n✗ Iteration caps as primary control: for i in range(5)\n   → max_turns is a SAFETY guardrail, not loop logic\n\n✗ Checking assistant text for signals: if text.endswith("COMPLETE")\n   → Never inspect text to decide loop continuation\n\n✗ Pre-configured decision trees: if "refund" in user_input: call_tool()\n   → Removes Claude's model-driven reasoning\n\n✓ ONLY correct primary control:\n   if response.stop_reason == "end_turn": break`},
+    {tag:'API',color:'var(--cyan)',title:'tool_use & tool_result Format',content:`CLAUDE SENDS (tool_use block in assistant message):\n{\n  "type": "tool_use",\n  "id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",\n  "name": "get_customer",\n  "input": {"customer_email": "alice@example.com"}\n}\n\nYOU SEND BACK (tool_result in user message):\n{\n  "type": "tool_result",\n  "tool_use_id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",\n  "content": "{\\"name\\": \\"Alice\\", \\"id\\": \\"C-123\\"}" \n}\n\nCRITICAL RULES:\n• tool_use_id in result MUST match the id from tool_use block\n• content MUST be a string — not number, boolean, or raw JSON\n• is_error: true tells Claude the tool call failed\n• tool_result blocks MUST come FIRST in content array\n• Multiple tool_use blocks = parallel calls (execute ALL)`},
+  ]
+},
+'1.2': {
+  keyInsight: "Subagents are isolated. They can't talk to each other. ALL communication goes through the coordinator. Missing coverage = coordinator's fault.",
+  concepts: [
+    {tag:'ARCH',color:'var(--green)',title:'Hub-and-Spoke Architecture',content:`The coordinator (hub) manages all communication:\n\n• Decomposes tasks into subtasks\n• Delegates to specialized subagents (spokes)\n• Aggregates and synthesizes results\n• Handles errors and re-delegation\n\nCRITICAL RULES:\n1. Subagents CANNOT communicate directly\n2. ALL info flows through the coordinator\n3. Each subagent gets a FRESH context\n4. Only the FINAL message returns to coordinator\n5. Intermediate tool calls STAY inside subagent\n6. Coordinator decides what context each gets`},
+    {tag:'EXAM',color:'var(--red)',title:'The Decomposition Problem (Q7)',content:`SCENARIO: Research "AI in creative industries"\n→ Output only covers visual arts. Missing music, writing, film.\n→ Coordinator decomposed into: "AI in digital art",\n  "AI in graphic design", "AI in photography"\n\nWHO IS AT FAULT?\n✗ A) Synthesis agent lacks gap detection → wrong\n   (can only work with what it receives)\n✗ C) Web search queries too narrow → wrong\n   (searched exactly what it was assigned)\n✗ D) Doc analysis filtering too aggressively → wrong\n\n✓ B) Coordinator's decomposition is too narrow\n   (only created visual arts subtasks!)\n\nPRINCIPLE: Subagents work correctly within their scope.\nMissing coverage = ALWAYS a coordinator problem.`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'Iterative Refinement Loops',content:`The coordinator evaluates and re-delegates:\n\n1. Decompose task into subtopics\n2. Subagents execute (parallel where possible)\n3. Coordinator receives results\n4. Evaluate synthesis for gaps\n   → "Is music covered? Writing? Film?"\n5. If gaps: re-invoke search with targeted queries\n6. Re-run synthesis with enriched findings\n7. Repeat until coverage sufficient\n\nEXAM: "How ensure comprehensive coverage?"\n→ Iterative refinement where coordinator checks\n  output quality and re-delegates to fill gaps`},
+    {tag:'API',color:'var(--cyan)',title:'Error Propagation (Q8)',content:`When a subagent fails (e.g., timeout):\n\n✓ Return STRUCTURED error context:\n  - failure type (timeout, auth, rate limit)\n  - attempted query\n  - partial results (if any)\n  - potential alternatives\n\n✗ Generic "search unavailable" → hides context\n✗ Empty result marked as success → masks failure\n✗ Terminate entire workflow → kills recoverable work\n\nStructured errors let the coordinator make smart\nrecovery decisions — retry, modify query, or\nproceed with partial results and annotate gaps.`},
+  ]
+},
+'1.3': {
+  keyInsight: "Subagents DO NOT inherit parent context. The ONLY way to pass info is through the Task tool's prompt parameter. Everything must be explicit.",
+  concepts: [
+    {tag:'CODE',color:'var(--accent)',title:'AgentDefinition Structure',content:`interface AgentDefinition {\n  description: string;    // WHEN Claude should invoke this\n  prompt: string;         // System prompt (behavior)\n  tools?: string[];       // ONLY these tools available\n  disallowedTools?: string[];  // Block specific tools\n  model?: "sonnet" | "opus" | "haiku" | "inherit";\n  mcpServers?: AgentMcpServerSpec[];\n  maxTurns?: number;\n}\n\nEXAM-CRITICAL:\n• Coordinator's allowedTools MUST include "Task"\n• Subagents CANNOT spawn sub-subagents\n• If tools omitted → inherits ALL parent tools\n• If tools specified → ONLY those available\n• description tells Claude WHEN to invoke`},
+    {tag:'EXAM',color:'var(--red)',title:'Context Passing — The #1 Gotcha',content:`WHAT SUBAGENTS GET AUTOMATICALLY:\n✓ Their own system prompt (AgentDefinition.prompt)\n✓ Project-level CLAUDE.md\n✓ Their allowed tool definitions\n\nWHAT SUBAGENTS DO NOT GET:\n✗ Parent's conversation history\n✗ Parent's system prompt\n✗ Results from other subagents\n✗ Files the parent has read\n✗ Errors from prior operations\n\nTHE ONLY CHANNEL: Task tool's prompt string\n\nGOOD: "Analyze /src/auth/jwt.ts. Prior search found\n  14 files import this. Bug in JIRA-456 relates to\n  token expiration on line 42."\n\nBAD: "Analyze the security issues." → No context!`},
+    {tag:'PATTERN',color:'var(--green)',title:'Scoped Tool Access (Q9, Q13)',content:`Too many tools DEGRADES reliability:\n18 tools → confused selection\n4-5 tools → high accuracy\n\nRECOMMENDED SETS BY ROLE:\n• Read-only review: Read, Grep, Glob\n• Test runner: Bash, Read, Grep\n• Code modifier: Read, Edit, Write, Grep, Glob\n• Web researcher: WebSearch, WebFetch, Read\n• Synthesis: verify_fact (scoped tool)\n\nQ9: Synthesis needs fact verification.\n85% simple lookups, 15% complex.\n✓ Scoped verify_fact for 85% case\n✗ Full web search (violates least privilege)\n✗ Batch at end (blocks dependent steps)`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'Parallel Subagent Spawning',content:`PARALLEL (correct — reduces latency):\nCoordinator emits MULTIPLE Task calls\nin ONE response → all execute simultaneously\n\nSEQUENTIAL (when tasks have dependencies):\nTurn 1: Task("Search for AI topics")\nTurn 2: sees results → Task("Analyze top 5")\nTurn 3: sees analysis → Task("Synthesize")\n\nUp to 10 concurrent subagent tasks\nwith intelligent queuing in the Agent SDK.\n\nEXAM TIP: "How to reduce latency?" →\nParallel execution (multiple Task calls in\none response), not faster models.`},
+  ]
+},
+'1.4': {
+  keyInsight: "When failure has financial or security consequences → MUST use programmatic enforcement (hooks/prerequisites). Prompts are probabilistic and WILL fail.",
+  concepts: [
+    {tag:'EXAM',color:'var(--red)',title:'Programmatic vs Prompt-Based (Q1)',content:`THIS IS THE #1 MOST TESTED CONCEPT\n\nPROMPT-BASED (~70-90% compliance):\n  System prompt: "You MUST call get_customer first"\n  → Works most of the time\n  → WILL fail occasionally (the 12% in Q1)\n  → INSUFFICIENT for financial operations\n\nPROGRAMMATIC (100% compliance):\n  Hook/prerequisite BLOCKS process_refund until\n  get_customer returns verified ID.\n  → LLM literally CANNOT bypass it\n  → Executes at system level\n  → Required for financial/security ops\n\nDECISION RULE:\n• Identity verification → PROGRAMMATIC\n• Financial operations → PROGRAMMATIC\n• Refund processing → PROGRAMMATIC\n• Output formatting → Prompt-based OK\n• Tool ordering (soft) → Prompt-based OK`},
+    {tag:'PATTERN',color:'var(--green)',title:'Structured Handoff Protocol',content:`When escalating to humans, handoff must be\nSELF-CONTAINED. Humans often DON'T have\nthe full conversation transcript.\n\nREQUIRED HANDOFF FIELDS:\n• customer_id\n• issue_summary\n• root_cause\n• refund_amount\n• recommended_action\n• conversation_context\n• prior_actions_taken\n• escalation_reason\n\nMULTI-CONCERN: Decompose into distinct items,\ninvestigate EACH in parallel, synthesize unified\nresolution. If any needs escalation, include ALL\nconcerns in the handoff.`},
+    {tag:'EXAM',color:'var(--red)',title:'Escalation Calibration (Q3)',content:`SCENARIO: 55% resolution (target 80%).\nEscalates easy cases, handles complex ones.\n\n✓ A) Explicit escalation criteria + few-shot\n   examples → fixes unclear decision boundaries\n\n✗ B) Self-reported confidence score →\n   models are poorly calibrated\n✗ C) ML classifier on historical data →\n   over-engineered before prompt optimization\n✗ D) Sentiment analysis →\n   sentiment ≠ case complexity\n\nCORRECT ESCALATION TRIGGERS:\n• Customer explicitly requests human\n• Policy gap (ambiguous or silent)\n• Cannot make meaningful progress\n• Multiple customer matches\n\nPRINCIPLE: Try prompt optimization FIRST.\nOnly add ML infra after prompts exhausted.`},
+  ]
+},
+'1.5': {
+  keyInsight: "Hooks execute at SYSTEM level, outside the LLM reasoning chain. The model cannot skip them. Deterministic guarantees that prompts cannot provide.",
+  concepts: [
+    {tag:'ARCH',color:'var(--green)',title:'Hook Lifecycle & Types',content:`ALL HOOK TYPES IN THE SDK:\n• PreToolUse → Before tool execution\n• PostToolUse → After tool execution\n• PostToolUseFailure → After tool fails\n• Stop → Agent finishes (cleanup)\n• SessionStart / SessionEnd\n• UserPromptSubmit → User submits prompt\n• SubagentStart / SubagentStop\n• TaskCompleted → Subagent task done\n• PreCompact → Before context compaction\n• PermissionRequest\n• Notification\n\nPERMISSION PRIORITY: Deny > Ask > Allow\nIf ANY hook returns "deny", operation blocked.\n\nEVALUATION ORDER:\nhooks → deny rules → permission mode →\nallow rules → canUseTool callback`},
+    {tag:'CODE',color:'var(--accent)',title:'PreToolUse — Compliance Enforcement',content:`// Block refunds over $500\nconst complianceHook = {\n  matcher: { toolNames: ["process_refund"] },\n  callback: async (input) => {\n    if (input.tool_input.amount > 500) {\n      return {\n        permissionDecision: "deny",\n        permissionDecisionReason:\n          "Refund exceeds $500 limit.",\n        additionalContext:\n          "Please use escalate_to_human."\n      };\n    }\n    return { permissionDecision: "allow" };\n  }\n};\n\nPreToolUse can:\n• Validate inputs\n• BLOCK the call (deny)\n• Modify inputs (updatedInput)\n• Redirect to another tool`},
+    {tag:'CODE',color:'var(--accent)',title:'PostToolUse — Data Normalization',content:`// Normalize heterogeneous date formats\n// Tool A: Unix timestamp\n// Tool B: "March 15, 2024"\n// Tool C: "2024-03-15T00:00:00Z"\n// → Normalize ALL to ISO 8601\n\nconst normalizeDates = {\n  matcher: null,  // ALL tools\n  callback: async (input) => {\n    return {\n      additionalContext:\n        "Dates normalized to ISO 8601."\n    };\n  }\n};\n\nPostToolUse can:\n• Normalize output data\n• Append context\n• Log/audit\n• Trim verbose outputs\n• CANNOT undo execution`},
+  ]
+},
+'1.6': {
+  keyInsight: "Fixed pipelines (prompt chaining) for known steps. Dynamic decomposition when you don't know what you'll find. Split large reviews to avoid attention dilution.",
+  concepts: [
+    {tag:'ARCH',color:'var(--green)',title:'Chaining vs Dynamic Decomposition',content:`PROMPT CHAINING (Fixed Pipeline):\nStep 1 → Step 2 → Step 3 → Done\n• Steps known upfront, order fixed\n• Each step's output feeds next\n• Best for: predictable workflows\n• Examples: code review, data extraction\n\nDYNAMIC DECOMPOSITION (Adaptive):\nExplore → Discover → Adapt → Execute\n• Steps NOT known upfront\n• Plan evolves based on findings\n• Best for: open-ended investigation\n• Examples: legacy codebase, bug hunting\n\nDECISION RULE:\n"Predictable process" → Prompt chaining\n"Need to discover" → Dynamic\n"Large multi-file review" → Per-file + integration\n"Microservice restructuring" → Dynamic`},
+    {tag:'EXAM',color:'var(--red)',title:'Multi-Pass Review — 14-File Problem (Q12)',content:`14-file PR review produces:\n• Detailed feedback early, superficial later\n• Obvious bugs missed in later files\n• Contradictory findings across files\n\nROOT CAUSE: Attention dilution\n("Lost in the middle" effect)\n\nSOLUTION:\nPASS 1: Per-file analysis (PARALLEL)\n  Each file gets FULL attention.\n\nPASS 2: Cross-file integration (SEQUENTIAL)\n  Check data flow, patterns, API contracts.\n\nWRONG ANSWERS:\n✗ "Split PRs" → shifts burden to devs\n✗ "Bigger context window" → DOESN'T fix\n  attention quality (capacity ≠ quality)\n✗ "3 passes, 2/3 consensus" → suppresses\n  real bugs caught intermittently`},
+    {tag:'CONCEPT',color:'var(--yellow)',title:'Attention Dilution Research',content:`"Lost in the Middle" (Stanford/Liu et al.):\nLLMs attend best to START + END of context.\nPerformance drops 20+ points for middle content.\n\nU-shaped performance curve:\n  HIGH ████                      ████\n  MED  ████  ████          ████  ████\n  LOW  ████  ████  ████  ████  ████\n       Start     Middle       End\n\nMITIGATIONS:\n1. Split into focused passes\n2. Place key findings at START\n3. Use explicit section headers\n4. Trim verbose tool outputs\n5. Delegate exploration to subagents\n\n"Use bigger model/context" is almost\nALWAYS wrong on the exam.`},
+  ]
+},
+'1.7': {
+  keyInsight: "fork_session branches CONVERSATION HISTORY, not the filesystem. Stale context? Start fresh with summary injection.",
+  concepts: [
+    {tag:'CLI',color:'var(--cyan)',title:'Session Commands Reference',content:`CREATING:\n  claude                      # new unnamed\n  claude -n auth-refactor     # new named\n\nRESUMING:\n  claude --resume             # browse & select\n  claude --resume <name>      # by name\n  claude -c                   # continue most recent\n\nFORKING:\n  claude --resume <id> --fork-session\n  # Creates NEW session ID\n  # Copies conversation history\n  # Original UNCHANGED\n  # Both share SAME filesystem!\n\nNON-INTERACTIVE (CI/CD):\n  claude -p "prompt"          # print mode\n  claude -p "..." --output-format json\n  claude -p "..." --json-schema '{...}'`},
+    {tag:'EXAM',color:'var(--red)',title:'Resume vs Fresh vs Fork',content:`RESUME when:\n✓ Prior context mostly still valid\n✓ Files haven't changed much\n✓ Continuing same investigation\n\nFRESH START when:\n✓ Prior tool results are stale\n✓ Context mostly irrelevant\n✓ Better: inject summary into new session\n✓ Context window consumed by old outputs\n\nFORK when:\n✓ Comparing alternative approaches\n✓ E.g., JWT vs OAuth from shared analysis\n✓ Want both branches accessible\n\nCRITICAL: fork ≠ git branch!\nfork_session branches CONVERSATION only.\nFilesystem is SHARED. Both see same files.\nIf fork edits a file, original sees it too.`},
+    {tag:'PATTERN',color:'var(--yellow)',title:'Context Degradation Mitigation',content:`PROBLEM: After 30+ turns, Claude references\n"typical patterns" instead of specific class\nnames discovered earlier.\n\nSOLUTION (Q15):\n✓ Scratchpad files — persist key findings\n  OUTSIDE the context window. Immune to\n  degradation. Reference in subsequent prompts.\n\n✗ Bigger context → doesn't fix "lost in middle"\n✗ New session each phase → loses all prior work\n✗ /compact → helps space but doesn't preserve\n  specific findings\n\nALSO USEFUL:\n• /compact — compress context usage\n• /memory — view loaded config files\n• Explicit re-reading of key files`},
+  ]
+}
+};
+
+/* ═══════════════════════════════════════════════
+   SCENARIO DATA
+   ═══════════════════════════════════════════════ */
+
+const SCENARIOS = [
+{
+  id:'cs',
+  title:'Customer Support Resolution Agent',
+  desc:'Agent SDK, MCP tools, identity verification, escalation',
+  context:'You are building a customer support agent using the Claude Agent SDK. It handles returns, billing disputes, and account issues via MCP tools: get_customer, lookup_order, process_refund, escalate_to_human. Target: 80%+ first-contact resolution.',
+  questions:[
+    {q:'Production data shows the agent skips get_customer 12% of the time, leading to misidentified accounts. What change most effectively addresses this?',
+     opts:['Add programmatic prerequisite blocking lookup_order and process_refund until get_customer returns a verified ID','Enhance system prompt stating customer verification is mandatory','Add few-shot examples showing the agent always calling get_customer first','Implement a routing classifier that enables only the subset of tools appropriate for each request type'],
+     correct:0,why:'Programmatic enforcement provides deterministic guarantees. Prompts (B,C) are probabilistic (~70-90%). Routing (D) addresses availability, not ordering.',principle:'Financial/identity ops → ALWAYS programmatic enforcement',section:'1.4'},
+    {q:'Agent frequently calls get_customer when users ask about orders. Both tools have minimal descriptions. Most effective first step?',
+     opts:['Add few-shot examples showing order queries routing to lookup_order','Expand each tool description with input formats, example queries, edge cases, and boundaries','Implement a routing layer that parses input and pre-selects tools','Consolidate into a single lookup_entity tool'],
+     correct:1,why:'Tool descriptions are THE primary mechanism LLMs use for selection. Minimal descriptions = poor differentiation. Low-effort, high-leverage fix.',principle:'Tool descriptions = how LLMs choose tools. Fix descriptions FIRST.',section:'1.1'},
+    {q:'Agent achieves 55% first-contact resolution (target 80%). Escalates simple cases, handles complex policy exceptions. Most effective fix?',
+     opts:['Add explicit escalation criteria with few-shot examples showing when to escalate vs resolve','Have agent self-report confidence 1-10, auto-escalate below threshold','Deploy classifier trained on historical tickets to predict escalation need','Implement sentiment analysis to detect frustration and auto-escalate'],
+     correct:0,why:'Explicit criteria + few-shot directly fixes unclear decision boundaries. Confidence (B) is poorly calibrated. Classifier (C) over-engineered. Sentiment (D) ≠ complexity.',principle:'Try prompt optimization FIRST before ML infrastructure.',section:'1.4'},
+  ]
+},
+{
+  id:'mr',
+  title:'Multi-Agent Research System',
+  desc:'Coordinator-subagent, context passing, error propagation, synthesis',
+  context:'You are building a multi-agent research system. A coordinator delegates to specialized subagents: web search, document analysis, synthesis, and report generation. The system produces comprehensive, cited reports.',
+  questions:[
+    {q:'Research on "AI in creative industries" only covers visual arts, missing music, writing, film. Coordinator decomposed into 3 visual arts subtasks. Root cause?',
+     opts:['Synthesis agent lacks instructions for identifying coverage gaps','Coordinator task decomposition is too narrow, missing entire domains','Web search queries are not comprehensive enough','Document analysis agent filters out non-visual sources'],
+     correct:1,why:'Coordinator\'s logs show only visual arts subtasks. Subagents executed correctly within scope. Missing coverage = coordinator decomposition problem.',principle:'Missing coverage = coordinator decomposition, not subagent execution.',section:'1.2'},
+    {q:'Web search subagent times out. Which error propagation approach best enables intelligent recovery?',
+     opts:['Return structured error context: failure type, attempted query, partial results, alternatives','Implement auto retry with exponential backoff, return generic "search unavailable"','Catch timeout and return empty result set marked as successful','Propagate timeout exception to top-level handler that terminates workflow'],
+     correct:0,why:'Structured context lets coordinator make smart decisions. Generic status (B) hides context. Empty success (C) masks failure. Termination (D) kills recoverable work.',principle:'Structured errors enable recovery. Generic errors and suppression are anti-patterns.',section:'1.2'},
+    {q:'Synthesis agent needs fact verification. 85% simple lookups, 15% complex. 2-3 round trips add 40% latency. Best approach?',
+     opts:['Give synthesis agent a scoped verify_fact tool for simple lookups; complex ones go through coordinator','Batch all verifications at end of synthesis pass','Give synthesis agent full web search tools','Have web search agent proactively cache extra context'],
+     correct:0,why:'Least privilege: minimum tools for 85% common case. Complex cases still coordinate. Batching (B) blocks dependencies. Full tools (C) violates separation.',principle:'Least privilege: scoped tools for common cases, coordinator for complex.',section:'1.3'},
+  ]
+},
+{
+  id:'dp',
+  title:'Developer Productivity & CI/CD',
+  desc:'Plan mode, sessions, code review, batch processing',
+  context:'You are building developer productivity tools and integrating Claude Code into CI/CD pipelines. The agent helps explore codebases, generate code, review PRs, and automate tasks.',
+  questions:[
+    {q:'Restructuring a monolith into microservices. Changes affect dozens of files with service boundary decisions needed. Which approach?',
+     opts:['Enter plan mode to explore, understand dependencies, and design approach before changes','Start with direct execution, letting implementation reveal natural service boundaries','Use direct execution with comprehensive upfront instructions detailing each service','Begin in direct execution, switch to plan mode only if unexpected complexity appears'],
+     correct:0,why:'Plan mode enables safe exploration and design before committing. Direct execution (B) risks rework. Upfront instructions (C) assume you know the code. Reactive (D) ignores obvious complexity.',principle:'Complex architectural decisions → plan mode.',section:'1.6'},
+    {q:'14-file PR review produces inconsistent results: detailed for some, superficial for others, contradictory findings. How to fix?',
+     opts:['Split into per-file local analysis + separate cross-file integration pass','Require developers to split PRs into 3-4 file submissions','Switch to larger context window model for adequate attention','Run three independent passes, flag only issues in 2+ runs'],
+     correct:0,why:'Splitting addresses attention dilution. Per-file ensures consistent depth. Cross-file catches integration issues. Bigger context ≠ better attention quality.',principle:'Attention dilution → split into focused passes. Bigger context ≠ better attention.',section:'1.6'},
+    {q:'Pipeline runs `claude "Analyze this PR"` but hangs waiting for input. Correct CI/CD approach?',
+     opts:['Add -p flag: claude -p "Analyze this PR for security issues"','Set CLAUDE_HEADLESS=true environment variable','Redirect stdin: claude "..." < /dev/null','Add --batch flag: claude --batch "..."'],
+     correct:0,why:'-p (--print) runs Claude Code in non-interactive mode. Other options reference non-existent features.',principle:'CI/CD: -p flag for non-interactive, --output-format json for structured output.',section:'1.7'},
+  ]
+}
+];
+
+/* ═══════════════════════════════════════════════
+   QUIZ DATA — 25 Questions
+   ═══════════════════════════════════════════════ */
+
+const QUIZ_DATA = [
+  {q:"Production data shows your agent skips get_customer in 12% of cases, leading to misidentified accounts. What change most effectively addresses this?",opts:["Add programmatic prerequisite blocking calls until get_customer returns verified ID","Enhance system prompt stating customer verification is mandatory","Add few-shot examples showing agent always calling get_customer first","Implement routing classifier enabling subset of tools per request type"],correct:0,why:"Programmatic enforcement = deterministic. Prompts (B,C) = probabilistic. Routing (D) = wrong problem.",section:"1.4"},
+  {q:"Agent frequently calls get_customer when users ask about orders. Both tools have minimal descriptions. Most effective first step?",opts:["Add few-shot examples for correct tool routing","Expand each tool's description with input formats, examples, boundaries","Implement keyword-based routing layer","Consolidate into single lookup_entity tool"],correct:1,why:"Tool descriptions are THE primary mechanism for tool selection. Low-effort, high-leverage fix.",section:"1.1"},
+  {q:"Agent achieves 55% resolution (target 80%). Escalates easy cases, handles complex policy exceptions. Best fix?",opts:["Add explicit escalation criteria with few-shot examples","Self-reported confidence score with auto-escalation threshold","ML classifier on historical tickets","Sentiment analysis for auto-escalation"],correct:0,why:"Explicit criteria fixes unclear boundaries. Confidence is poorly calibrated. Classifier is over-engineered. Sentiment ≠ complexity.",section:"1.4"},
+  {q:"Research on 'AI in creative industries' only covers visual arts. Coordinator decomposed into 3 visual arts subtasks. Root cause?",opts:["Synthesis agent lacks gap detection","Coordinator's task decomposition is too narrow","Web search queries not comprehensive enough","Document analysis filtering too aggressively"],correct:1,why:"Coordinator only created visual arts subtasks. Subagents executed correctly within scope. Missing coverage = coordinator problem.",section:"1.2"},
+  {q:"Web search subagent times out. Best error propagation approach for intelligent recovery?",opts:["Return structured error context: failure type, query, partial results, alternatives","Auto retry with exponential backoff, return generic 'search unavailable'","Catch timeout and return empty results marked as successful","Propagate exception to top-level handler that terminates workflow"],correct:0,why:"Structured context enables smart coordinator recovery. Generic status hides context. Suppression masks failure.",section:"1.2"},
+  {q:"Synthesis agent needs fact verification. 85% simple lookups, 15% complex. 2-3 round trips add 40% latency. Best approach?",opts:["Scoped verify_fact tool for simple lookups; complex through coordinator","Batch all verifications at end of synthesis pass","Full web search tools for synthesis agent","Proactive caching by web search agent"],correct:0,why:"Least privilege: minimum tools for 85% case. Batching blocks dependencies. Full tools violates separation.",section:"1.3"},
+  {q:"14-file PR review: detailed for some, superficial for others, contradictory findings. How to fix?",opts:["Per-file local analysis + separate cross-file integration pass","Require devs to split PRs into 3-4 files","Larger context window model","Three independent passes, flag issues in 2+ runs"],correct:0,why:"Splitting addresses attention dilution. Per-file = consistent depth. Bigger context ≠ better attention.",section:"1.6"},
+  {q:"Restructuring monolith into microservices. Changes affect dozens of files. Which approach?",opts:["Plan mode to explore, understand, and design before changes","Direct execution to let implementation reveal boundaries","Direct execution with comprehensive upfront instructions","Direct execution, switch to plan mode if complexity appears"],correct:0,why:"Plan mode enables safe exploration before committing. Complexity is already stated, not emergent.",section:"1.6"},
+  {q:"PostToolUse hook receives dates from 3 MCP tools: Unix timestamps, 'March 15, 2024', ISO 8601. What should it do?",opts:["Normalize all dates to ISO 8601 before agent processes them","Pass all formats through, let Claude interpret contextually","Return error asking MCP servers to standardize output","Add system prompt telling Claude to treat all formats equivalently"],correct:0,why:"PostToolUse normalizes data at system level before model processing. Interpretation (B) adds cognitive load. Prompts (D) are probabilistic.",section:"1.5"},
+  {q:"Coordinator launches 3 parallel subagents. B's findings would help C. How to handle?",opts:["Coordinator collects B's results first, then passes relevant findings in C's prompt","Set up shared memory space for B and C","Have B send results directly to C via inter-agent messaging","Give C access to B's conversation history via session sharing"],correct:0,why:"Subagents CANNOT communicate directly. No shared memory. ALL communication through coordinator.",section:"1.3"},
+  {q:"Compare two refactoring strategies (JWT vs OAuth) from same codebase analysis. Best approach?",opts:["fork_session to create two branches from shared analysis","Both analyses in same session","Two new sessions repeating baseline","Subagents to explore each strategy"],correct:0,why:"fork_session branches conversation from same starting point. Same session risks confusion. New sessions waste effort.",section:"1.7"},
+  {q:"Pipeline runs `claude 'Analyze PR'` but hangs. Correct CI/CD approach?",opts:["Add -p flag: claude -p 'Analyze PR'","Set CLAUDE_HEADLESS=true","Redirect stdin from /dev/null","Add --batch flag"],correct:0,why:"-p (--print) runs non-interactive mode. Others reference non-existent features.",section:"1.7"},
+  {q:"Agent has 18 tools, frequently selects wrong ones and uses tools outside its role. Best fix?",opts:["Restrict each agent to 4-5 role-relevant tools","Add few-shot examples for all 18 tools","Implement tool routing layer","Improve all 18 tool descriptions"],correct:0,why:"Too many tools degrades selection. Scoping to role-relevant tools is fundamental fix.",section:"1.3"},
+  {q:"PreToolUse hook should block process_refund if no verified customer ID. Which return structure?",opts:["permissionDecision: 'deny' with reason AND additionalContext","Error message that tool can't be found","Modify tool input to add unverified flag","permissionDecision: 'allow' with system message warning"],correct:0,why:"Deny + additionalContext = deterministic block + model guidance. Allow (D) defeats purpose.",section:"1.5"},
+  {q:"During long investigation, Claude references 'typical patterns' instead of specific class names from 30 turns ago. Best mitigation?",opts:["Scratchpad files to persist key findings, reference in subsequent prompts","Increase context window for full history","New session for each investigation phase","Periodic /compact commands"],correct:0,why:"Scratchpad files persist facts OUTSIDE context window. Bigger context doesn't fix 'lost in middle'.",section:"1.7"},
+  {q:"A customer says 'I was charged twice AND my delivery is late AND I want to change my address.' How should the agent handle this?",opts:["Decompose into 3 distinct issues, investigate each in parallel with shared context, synthesize unified resolution","Handle issues sequentially in order of severity","Ask customer which issue to address first","Escalate immediately since multi-concern requests are too complex"],correct:0,why:"Multi-concern decomposition with parallel investigation and unified synthesis is the correct pattern.",section:"1.4"},
+  {q:"Your agentic loop receives stop_reason: 'pause_turn'. What should you do?",opts:["Send the response back to continue — pause_turn is NOT terminal","Return the response to the user as the final answer","Restart the conversation from scratch","Log an error and terminate the loop"],correct:0,why:"pause_turn indicates server-side iteration limit hit. Send response back to continue. It is NOT a terminal signal.",section:"1.1"},
+  {q:"You want to enforce that tool_result content is always a string. Where should this validation happen?",opts:["In your agentic loop code before appending tool results to messages","In a PreToolUse hook that validates the tool's return type","In the tool implementation itself","In the system prompt instructing Claude to return strings"],correct:0,why:"Tool result formatting is your code's responsibility. The API requires string content in tool_result blocks.",section:"1.1"},
+  {q:"A subagent's prompt says 'Analyze the codebase for security issues.' It produces generic output. What's wrong?",opts:["The prompt lacks specific file paths, prior findings, and constraints that the subagent needs","The subagent needs a larger context window","The subagent should be given more tools","The subagent's model should be upgraded to Opus"],correct:0,why:"Subagents don't inherit parent context. The prompt is the ONLY channel — it must include specific details.",section:"1.3"},
+  {q:"Your coordinator needs to ensure comprehensive research coverage. After initial subagent results, coverage is incomplete. Next step?",opts:["Evaluate synthesis for gaps, then re-delegate with targeted queries for missing areas","Increase the number of subagents","Give subagents access to each other's results","Restart the entire research process with broader initial queries"],correct:0,why:"Iterative refinement: coordinator evaluates, identifies gaps, re-delegates with targeted queries.",section:"1.2"},
+  {q:"What is the correct conversation message order in an agentic loop?",opts:["user → assistant(tool_use) → user(tool_result) → assistant → ...","user → tool_call → tool_result → assistant → ...","user → assistant → tool_use → tool_result → user → ...","user → system(tool_use) → user(tool_result) → assistant → ..."],correct:0,why:"Tool calls are assistant messages with tool_use blocks. Tool results are user messages with tool_result blocks.",section:"1.1"},
+  {q:"Your agent handles refunds. A PreToolUse hook denies a $600 refund. What should additionalContext contain?",opts:["Guidance for Claude on what to do next (e.g., 'use escalate_to_human with refund details')","The customer's full conversation history","The hook's source code for transparency","Nothing — the deny reason is sufficient"],correct:0,why:"additionalContext guides Claude's next action after denial. It should tell Claude what alternative to use.",section:"1.5"},
+  {q:"You need to pass findings from a search subagent to a synthesis subagent. Best format?",opts:["Structured data with claims, evidence excerpts, source URLs, and publication dates","Raw search result HTML","A summary paragraph describing what was found","A list of URLs for the synthesis agent to visit"],correct:0,why:"Structured data preserves provenance (attribution) through synthesis. Raw HTML wastes context. URLs require re-fetching.",section:"1.3"},
+  {q:"The Anthropic 'Building Effective Agents' blog describes 5 workflow patterns. Which is the simplest starting point?",opts:["Prompt chaining — sequential steps with gates between them","Orchestrator-workers — central LLM delegates dynamically","Evaluator-optimizer — generate and evaluate in loop","Parallelization with voting — multiple perspectives"],correct:0,why:"Anthropic recommends starting simple: prompt chaining is the simplest workflow pattern. Add complexity only when measured improvement justifies it.",section:"1.6"},
+  {q:"When should you use max_turns vs stop_reason for loop control?",opts:["stop_reason is PRIMARY loop control; max_turns is a SAFETY guardrail","max_turns is primary; stop_reason provides diagnostic info","Both are interchangeable loop control mechanisms","max_turns for production; stop_reason for development"],correct:0,why:"stop_reason drives the loop (model decides when done). max_turns is a safety cap to prevent runaway costs.",section:"1.1"},
+];
+
+/* ═══════════════════════════════════════════════
+   DECISION FRAMEWORK DATA
+   ═══════════════════════════════════════════════ */
+
+const DECISIONS = [
+  {situation:'Identity verification skipped 12% of the time',category:'Enforcement',answer:'Programmatic hooks/prerequisites',wrong:'Enhanced system prompt',reasoning:'Financial/identity operations require deterministic (100%) compliance. Prompts give ~70-90%.'},
+  {situation:'Agent picks wrong tool from 18 available',category:'Tool Design',answer:'Restrict to 4-5 role-relevant tools',wrong:'Better tool descriptions for all 18',reasoning:'Too many tools degrades selection reliability. Scope per role first, then improve descriptions.'},
+  {situation:'Tool descriptions too vague for selection',category:'Tool Design',answer:'Expand tool descriptions with formats, examples, boundaries',wrong:'Few-shot examples or routing layer',reasoning:'Descriptions are THE primary mechanism for tool selection. Low-effort, high-leverage.'},
+  {situation:'Research coverage is incomplete',category:'Orchestration',answer:'Fix coordinator decomposition (broader subtasks)',wrong:'Better subagent search or synthesis',reasoning:'Missing coverage = coordinator problem. Subagents work correctly within assigned scope.'},
+  {situation:'Escalation calibration is wrong (easy cases escalated)',category:'Enforcement',answer:'Explicit criteria + few-shot examples in prompt',wrong:'Confidence scoring or ML classifier',reasoning:'Try prompt optimization FIRST. ML infrastructure only after prompts exhausted.'},
+  {situation:'Monolith-to-microservices restructuring',category:'Workflow',answer:'Plan mode → explore and design first',wrong:'Direct execution (incremental)',reasoning:'Complex architectural decisions with multiple valid approaches = plan mode.'},
+  {situation:'14-file PR review inconsistent',category:'Decomposition',answer:'Split: per-file analysis + cross-file integration',wrong:'Bigger context window',reasoning:'Attention dilution. Bigger context ≠ better attention quality.'},
+  {situation:'Subagent needs data from another subagent',category:'Orchestration',answer:'Coordinator collects B results, passes to C in prompt',wrong:'Shared memory or direct messaging',reasoning:'ALL subagent communication flows through coordinator. No direct channels.'},
+  {situation:'Long session loses specific details',category:'Context',answer:'Scratchpad files to persist key findings',wrong:'Bigger context or more /compact',reasoning:'External persistence immune to context degradation.'},
+  {situation:'CI/CD pipeline hangs waiting for input',category:'Workflow',answer:'Use -p flag for non-interactive mode',wrong:'CLAUDE_HEADLESS env var',reasoning:'-p (--print) is the documented non-interactive flag.'},
+  {situation:'Comparing two refactoring approaches',category:'Sessions',answer:'fork_session from shared analysis baseline',wrong:'Two new sessions or same session',reasoning:'Fork branches conversation (not filesystem). Both approaches accessible.'},
+  {situation:'Tool output has heterogeneous date formats',category:'Hooks',answer:'PostToolUse hook to normalize before model processing',wrong:'System prompt to treat formats equivalently',reasoning:'Hooks normalize at system level (deterministic). Prompts are probabilistic.'},
+];
+
+/* ═══════════════════════════════════════════════
+   SVG DIAGRAM COMPONENTS
+   ═══════════════════════════════════════════════ */
+
+function AgenticLoopDiagram() {
+  const [activeNode, setActiveNode] = useState(null);
+  const nodes = [
+    {id:'prompt',x:200,y:30,label:'User Prompt',color:'var(--accent2)',desc:'Initial user message starts the loop'},
+    {id:'claude',x:200,y:110,label:'Claude API',color:'var(--cyan)',desc:'Model processes messages + tools, returns response with stop_reason'},
+    {id:'check',x:200,y:200,label:'Check stop_reason',color:'var(--yellow)',desc:'YOUR code checks stop_reason to decide next action'},
+    {id:'tool',x:60,y:280,label:'Execute Tools',color:'var(--orange)',desc:'stop_reason="tool_use" → execute ALL tool calls, append results'},
+    {id:'done',x:340,y:280,label:'Return Response',color:'var(--green)',desc:'stop_reason="end_turn" → Claude is done, return final answer'},
+  ];
+  const info = {
+    prompt:'The agentic loop starts with a user message. This is wrapped in messages array and sent to the Claude API.',
+    claude:'Claude processes the full conversation history + available tools. It returns content blocks and a stop_reason field.',
+    check:'YOUR code (not Claude) checks the stop_reason field. This is the ONLY correct primary loop control mechanism.',
+    tool:'When stop_reason="tool_use", execute EVERY tool_use block. Append results as tool_result in a user message. Loop back to Claude.',
+    done:'When stop_reason="end_turn", Claude has decided it is finished. Return the final text response to the user.',
+  };
+  return React.createElement('div',{style:{marginBottom:16}},
+    React.createElement('svg',{viewBox:'0 0 420 340',style:{width:'100%',maxWidth:420,display:'block',margin:'0 auto'}},
+      React.createElement('defs',null,
+        React.createElement('marker',{id:'arrowhead',markerWidth:8,markerHeight:6,refX:8,refY:3,orient:'auto'},
+          React.createElement('path',{d:'M0 0L8 3L0 6Z',fill:'var(--textDim)'})
+        )
+      ),
+      // Arrows
+      React.createElement('line',{x1:200,y1:50,x2:200,y2:95,stroke:'var(--textDim)',strokeWidth:1.5,markerEnd:'url(#arrowhead)'}),
+      React.createElement('line',{x1:200,y1:130,x2:200,y2:185,stroke:'var(--textDim)',strokeWidth:1.5,markerEnd:'url(#arrowhead)'}),
+      React.createElement('line',{x1:165,y1:215,x2:95,y2:265,stroke:'var(--orange)',strokeWidth:1.5,markerEnd:'url(#arrowhead)'}),
+      React.createElement('line',{x1:235,y1:215,x2:305,y2:265,stroke:'var(--green)',strokeWidth:1.5,markerEnd:'url(#arrowhead)'}),
+      // Loop-back arrow
+      React.createElement('path',{d:'M 30 280 Q -10 170 165 110',fill:'none',stroke:'var(--orange)',strokeWidth:1.5,strokeDasharray:'5,3',markerEnd:'url(#arrowhead)'}),
+      // Labels on arrows
+      React.createElement('text',{x:110,y:238,fill:'var(--orange)',fontSize:9,fontFamily:'var(--mono)',fontWeight:600},'tool_use'),
+      React.createElement('text',{x:265,y:238,fill:'var(--green)',fontSize:9,fontFamily:'var(--mono)',fontWeight:600},'end_turn'),
+      React.createElement('text',{x:-5,y:200,fill:'var(--orange)',fontSize:8,fontFamily:'var(--mono)',transform:'rotate(-70,10,200)'},'loop back'),
+      // Nodes
+      ...nodes.map(n =>
+        React.createElement('g',{key:n.id,onClick:()=>setActiveNode(activeNode===n.id?null:n.id),style:{cursor:'pointer'}},
+          React.createElement('rect',{x:n.x-65,y:n.y-15,width:130,height:30,rx:6,fill:activeNode===n.id?n.color+'33':'var(--card)',stroke:n.color,strokeWidth:activeNode===n.id?2:1}),
+          React.createElement('text',{x:n.x,y:n.y+4,textAnchor:'middle',fill:n.color,fontSize:11,fontWeight:600,fontFamily:'var(--font)'},n.label)
+        )
+      )
+    ),
+    activeNode && React.createElement('div',{className:'fade-in',style:{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:'var(--radius)',padding:'12px 16px',marginTop:8,fontSize:13,color:'var(--textMid)',lineHeight:1.6}},
+      React.createElement('strong',{style:{color:nodes.find(n=>n.id===activeNode).color}},nodes.find(n=>n.id===activeNode).label,': '),
+      info[activeNode]
+    )
+  );
+}
+
+function HubSpokeDiagram() {
+  const [highlight, setHighlight] = useState(null);
+  const spokes = [
+    {id:'search',angle:-60,label:'Search',color:'var(--cyan)'},
+    {id:'analyze',angle:0,label:'Analyze',color:'var(--accent2)'},
+    {id:'synth',angle:60,label:'Synthesize',color:'var(--green)'},
+  ];
+  return React.createElement('svg',{viewBox:'0 0 380 220',style:{width:'100%',maxWidth:380,display:'block',margin:'0 auto 12px'}},
+    // Connection lines
+    ...spokes.map(s => {
+      const x = 190 + Math.cos(s.angle * Math.PI / 180) * 120;
+      const y = 100 + Math.sin(s.angle * Math.PI / 180) * 70;
+      return React.createElement('line',{key:'l'+s.id,x1:190,y1:100,x2:x,y2:y,stroke:highlight===s.id?s.color:'var(--border2)',strokeWidth:highlight===s.id?2.5:1.5,strokeDasharray:highlight===s.id?'none':'4,4'});
+    }),
+    // X marks between spokes
+    React.createElement('text',{x:135,y:60,fill:'var(--red)',fontSize:14,fontWeight:700,opacity:.6},'✗'),
+    React.createElement('text',{x:240,y:60,fill:'var(--red)',fontSize:14,fontWeight:700,opacity:.6},'✗'),
+    React.createElement('text',{x:190,y:185,fill:'var(--red)',fontSize:10,fontFamily:'var(--mono)',textAnchor:'middle',opacity:.5},'No direct communication'),
+    // Hub
+    React.createElement('rect',{x:140,y:75,width:100,height:50,rx:8,fill:'var(--card)',stroke:'var(--accent)',strokeWidth:2}),
+    React.createElement('text',{x:190,y:97,textAnchor:'middle',fill:'var(--accent)',fontSize:11,fontWeight:700,fontFamily:'var(--font)'},'Coordinator'),
+    React.createElement('text',{x:190,y:112,textAnchor:'middle',fill:'var(--textDim)',fontSize:8,fontFamily:'var(--mono)'},'(Hub)'),
+    // Spokes
+    ...spokes.map(s => {
+      const x = 190 + Math.cos(s.angle * Math.PI / 180) * 120;
+      const y = 100 + Math.sin(s.angle * Math.PI / 180) * 70;
+      return React.createElement('g',{key:s.id,onMouseEnter:()=>setHighlight(s.id),onMouseLeave:()=>setHighlight(null),style:{cursor:'pointer'}},
+        React.createElement('rect',{x:x-40,y:y-18,width:80,height:36,rx:6,fill:highlight===s.id?s.color+'22':'var(--bg3)',stroke:s.color,strokeWidth:highlight===s.id?2:1}),
+        React.createElement('text',{x:x,y:y-2,textAnchor:'middle',fill:s.color,fontSize:10,fontWeight:600},s.label),
+        React.createElement('text',{x:x,y:y+10,textAnchor:'middle',fill:'var(--textDim)',fontSize:7,fontFamily:'var(--mono)'},'ISOLATED')
+      );
+    })
+  );
+}
+
+function HookLifecycleDiagram() {
+  const steps = [
+    {label:'Claude decides\nto call tool',color:'var(--cyan)',y:10},
+    {label:'PreToolUse\nHook',color:'var(--orange)',y:60,detail:'validate / block / modify'},
+    {label:'Permission\nCheck',color:'var(--yellow)',y:110,detail:'Deny > Ask > Allow'},
+    {label:'Tool\nExecutes',color:'var(--accent2)',y:160,detail:'actual execution'},
+    {label:'PostToolUse\nHook',color:'var(--green)',y:210,detail:'normalize / enrich / log'},
+  ];
+  return React.createElement('svg',{viewBox:'0 0 300 270',style:{width:'100%',maxWidth:300,display:'block',margin:'0 auto 12px'}},
+    ...steps.flatMap((s,i) => {
+      const elems = [
+        React.createElement('rect',{key:'r'+i,x:70,y:s.y,width:160,height:38,rx:6,fill:'var(--card)',stroke:s.color,strokeWidth:1.5}),
+        React.createElement('text',{key:'t'+i,x:150,y:s.y+16,textAnchor:'middle',fill:s.color,fontSize:10,fontWeight:600},s.label.split('\n')[0]),
+        s.label.split('\n')[1] && React.createElement('text',{key:'t2'+i,x:150,y:s.y+28,textAnchor:'middle',fill:s.color,fontSize:9},s.label.split('\n')[1]),
+      ];
+      if(s.detail) elems.push(React.createElement('text',{key:'d'+i,x:245,y:s.y+22,fill:'var(--textDim)',fontSize:8,fontFamily:'var(--mono)'},s.detail));
+      if(i < steps.length-1) elems.push(React.createElement('line',{key:'a'+i,x1:150,y1:s.y+38,x2:150,y2:steps[i+1].y,stroke:'var(--textDim)',strokeWidth:1,markerEnd:'url(#arrowhead)'}));
+      return elems;
+    })
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   UI COMPONENTS
+   ═══════════════════════════════════════════════ */
+
+const Icon = ({d,size=20,color='currentColor',style={}}) =>
+  React.createElement('svg',{width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:color,strokeWidth:1.8,strokeLinecap:'round',strokeLinejoin:'round',style},
+    React.createElement('path',{d})
+  );
+
+function Tag({color,children}) {
+  return React.createElement('span',{style:{fontSize:10,padding:'2px 8px',borderRadius:4,background:color+'1a',color,fontWeight:700,letterSpacing:'.04em',fontFamily:'var(--mono)',whiteSpace:'nowrap'}},children);
+}
+
+function WeightDots({weight,max=5}) {
+  return React.createElement('div',{style:{display:'flex',gap:3,alignItems:'center'}},
+    ...Array.from({length:max},(_,i) =>
+      React.createElement('div',{key:i,style:{width:8,height:8,borderRadius:'50%',background:i<weight?'var(--accent)':'var(--border)',transition:'background .2s'}})
+    ),
+    React.createElement('span',{style:{fontSize:10,color:'var(--textDim)',marginLeft:4,fontFamily:'var(--mono)'}},weight>=4?'HIGH':weight>=3?'MED':'LOW')
+  );
+}
+
+function CodeBlock({children}) {
+  return React.createElement('pre',{style:{margin:0,padding:14,background:'var(--code)',borderRadius:8,color:'var(--codeText)',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap',fontFamily:'var(--mono)',border:'1px solid var(--border)',overflowX:'auto'}},children);
+}
+
+function ConceptCard({concept,defaultOpen=false}) {
+  const [open,setOpen] = useState(defaultOpen);
+  const isExam = concept.tag==='EXAM'||concept.tag==='TRAP';
+  return React.createElement('div',{style:{background:'var(--card)',border:`1px solid ${open?concept.color+'55':'var(--border)'}`,borderLeft:`3px solid ${concept.color}`,borderRadius:'var(--radius)',marginBottom:10,transition:'border-color .2s'}},
+    React.createElement('div',{onClick:()=>setOpen(!open),style:{padding:'12px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flex:1,minWidth:0}},
+        React.createElement(Tag,{color:concept.color},concept.tag),
+        React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},concept.title)
+      ),
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:14,transform:open?'rotate(180deg)':'none',transition:'transform .2s',flexShrink:0}},'▾')
+    ),
+    open && React.createElement('div',{className:'fade-in',style:{padding:'0 16px 16px'}},
+      React.createElement(CodeBlock,null,concept.content)
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   STUDY GUIDE VIEW
+   ═══════════════════════════════════════════════ */
+
+function StudyView({completed,onToggle}) {
+  const [active,setActive] = useState(null);
+  const section = active ? TASK_STATEMENTS.find(t=>t.id===active) : null;
+  const content = active ? SECTION_CONTENT[active] : null;
+  const pct = Math.round(completed.size / TASK_STATEMENTS.length * 100);
+
+  if(section && content) {
+    const diagram = active==='1.1' ? React.createElement(AgenticLoopDiagram) :
+                    active==='1.2' ? React.createElement(HubSpokeDiagram) :
+                    active==='1.5' ? React.createElement(HookLifecycleDiagram) : null;
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('button',{onClick:()=>setActive(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:16,display:'flex',alignItems:'center',gap:4}},
+        React.createElement(Icon,{d:'M15 19l-7-7 7-7',size:16}),'Back to all sections'
+      ),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12,flexWrap:'wrap',gap:8}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          React.createElement('div',{style:{width:40,height:40,borderRadius:10,background:section.color+'1a',display:'flex',alignItems:'center',justifyContent:'center'}},
+            React.createElement(Icon,{d:section.icon,color:section.color,size:22})
+          ),
+          React.createElement('div',null,
+            React.createElement('h2',{style:{color:'var(--text)',fontSize:20,fontFamily:'var(--display)',fontWeight:700,margin:0}},`${section.id}: ${section.title}`),
+          )
+        ),
+        React.createElement(WeightDots,{weight:section.weight})
+      ),
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(124,92,252,.2)',borderRadius:'var(--radius)',padding:14,marginBottom:20}},
+        React.createElement('p',{style:{color:'var(--text)',margin:0,fontSize:13,lineHeight:1.6,fontWeight:500}},
+          React.createElement('strong',{style:{color:'var(--accent2)'}},'Key Insight: '),content.keyInsight
+        )
+      ),
+      diagram,
+      ...content.concepts.map((c,i) => React.createElement(ConceptCard,{key:i,concept:c,defaultOpen:i===0})),
+      React.createElement('button',{onClick:()=>onToggle(section.id),style:{marginTop:12,padding:'10px 20px',background:completed.has(section.id)?'var(--greenDim)':'var(--accent)',color:completed.has(section.id)?'var(--green)':'white',border:completed.has(section.id)?'1px solid var(--greenBorder)':'none',borderRadius:8,fontSize:13,fontWeight:600}},
+        completed.has(section.id)?'✓ Marked as Studied':'Mark Section Complete'
+      )
+    );
+  }
+
+  return React.createElement('div',null,
+    React.createElement('div',{style:{marginBottom:20}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--textDim)',marginBottom:4}},
+        React.createElement('span',null,'Study Progress'),
+        React.createElement('span',null,`${completed.size}/${TASK_STATEMENTS.length} sections (${pct}%)`)
+      ),
+      React.createElement('div',{style:{height:5,background:'var(--border)',borderRadius:3}},
+        React.createElement('div',{style:{height:'100%',width:`${pct}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:3,transition:'width .4s'}})
+      )
+    ),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      ...TASK_STATEMENTS.map((s,i) =>
+        React.createElement('div',{key:s.id,onClick:()=>setActive(s.id),className:'slide-in',style:{animationDelay:`${i*40}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',transition:'border-color .15s'}},
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12,flex:1}},
+            React.createElement('div',{style:{width:36,height:36,borderRadius:8,background:s.color+'15',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},
+              React.createElement(Icon,{d:s.icon,color:s.color,size:18})
+            ),
+            React.createElement('div',{style:{flex:1,minWidth:0}},
+              React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:2}},
+                React.createElement('span',{style:{color:'var(--text)',fontWeight:600,fontSize:14}},s.id),
+                React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},s.title),
+                completed.has(s.id) && React.createElement('span',{style:{color:'var(--green)',fontSize:14}},'✓')
+              ),
+              React.createElement('div',{style:{color:'var(--textDim)',fontSize:12}},`${SECTION_CONTENT[s.id].concepts.length} concepts`)
+            )
+          ),
+          React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flexShrink:0}},
+            React.createElement(WeightDots,{weight:s.weight}),
+            React.createElement('span',{style:{color:'var(--textDim)'}},'→')
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   SCENARIOS VIEW
+   ═══════════════════════════════════════════════ */
+
+function ScenariosView() {
+  const [activeScenario, setActiveScenario] = useState(null);
+  const [qIdx, setQIdx] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [score, setScore] = useState(0);
+
+  if(!activeScenario) {
+    return React.createElement('div',null,
+      React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16,lineHeight:1.6}},'The real exam presents 4 randomly-selected scenarios from 6 total. Walk through Domain 1 scenarios below to practice the exam format.'),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+        ...SCENARIOS.map((s,i) =>
+          React.createElement('div',{key:s.id,onClick:()=>{setActiveScenario(s);setQIdx(0);setPicked(null);setScore(0);},className:'fade-in',style:{animationDelay:`${i*60}ms`,background:'var(--card)',border:'1px solid var(--border)',borderRadius:'var(--radius-lg)',padding:20,cursor:'pointer',transition:'border-color .15s'}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
+              React.createElement('h3',{style:{color:'var(--text)',fontSize:16,fontWeight:600,margin:0}},s.title),
+              React.createElement(Tag,{color:'var(--accent)'},`${s.questions.length} questions`)
+            ),
+            React.createElement('p',{style:{color:'var(--textDim)',fontSize:12,margin:0}},s.desc)
+          )
+        )
+      )
+    );
+  }
+
+  const sc = activeScenario;
+  const q = sc.questions[qIdx];
+  const allDone = qIdx >= sc.questions.length;
+
+  if(allDone) {
+    const pct = Math.round(score/sc.questions.length*100);
+    return React.createElement('div',{className:'fade-in',style:{textAlign:'center',padding:'40px 20px'}},
+      React.createElement('div',{style:{fontSize:56,marginBottom:12}},pct>=80?'🎯':pct>=60?'📊':'📚'),
+      React.createElement('h2',{style:{color:'var(--text)',margin:'0 0 8px'}},`${score}/${sc.questions.length} Correct (${pct}%)`),
+      React.createElement('p',{style:{color:'var(--textMid)',marginBottom:24,fontSize:14}},sc.title),
+      React.createElement('div',{style:{display:'flex',gap:10,justifyContent:'center'}},
+        React.createElement('button',{onClick:()=>{setQIdx(0);setPicked(null);setScore(0);},style:{padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontWeight:600}},'Retry'),
+        React.createElement('button',{onClick:()=>setActiveScenario(null),style:{padding:'10px 20px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8}},'All Scenarios')
+      )
+    );
+  }
+
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('button',{onClick:()=>setActiveScenario(null),style:{background:'none',border:'none',color:'var(--accent)',fontSize:13,padding:0,marginBottom:12,display:'flex',alignItems:'center',gap:4}},
+      React.createElement(Icon,{d:'M15 19l-7-7 7-7',size:16}),'All Scenarios'
+    ),
+    React.createElement('div',{style:{background:'var(--card2)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:16,border:'1px solid var(--border)'}},
+      React.createElement('h3',{style:{color:'var(--accent2)',fontSize:14,margin:'0 0 6px',fontFamily:'var(--mono)'}},'SCENARIO'),
+      React.createElement('h2',{style:{color:'var(--text)',fontSize:18,margin:'0 0 8px',fontWeight:600}},sc.title),
+      React.createElement('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},sc.context)
+    ),
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+      React.createElement(Tag,{color:'var(--cyan)'},`Q${qIdx+1}/${sc.questions.length}`),
+      React.createElement('span',{style:{color:'var(--green)',fontSize:13,fontWeight:600}},`${score}/${qIdx} correct`)
+    ),
+    React.createElement('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},
+      React.createElement('div',{style:{height:'100%',width:`${((qIdx+(picked!==null?1:0))/sc.questions.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:2,transition:'width .3s'}})
+    ),
+    React.createElement('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      ...q.opts.map((opt,i) => {
+        let bg='var(--card)',bdr='var(--border)';
+        if(picked!==null){
+          if(i===q.correct){bg='var(--greenDim)';bdr='var(--green)';}
+          else if(i===picked){bg='var(--redDim)';bdr='var(--red)';}
+        }
+        return React.createElement('div',{key:i,onClick:()=>{if(picked!==null)return;setPicked(i);if(i===q.correct)setScore(s=>s+1);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bdr}`,borderRadius:8,cursor:picked===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5,transition:'all .15s'}},
+          React.createElement('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),opt
+        );
+      })
+    ),
+    picked!==null && React.createElement('div',{className:'fade-in',style:{marginTop:16}},
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(124,92,252,.2)',borderRadius:8,padding:16,marginBottom:12}},
+        React.createElement('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 6px',fontSize:11,fontFamily:'var(--mono)'}},'WHY '+String.fromCharCode(65+q.correct)+' IS CORRECT:'),
+        React.createElement('p',{style:{color:'var(--textMid)',margin:'0 0 10px',fontSize:13,lineHeight:1.6}},q.why),
+        React.createElement('div',{style:{background:'var(--greenDim)',border:'1px solid var(--greenBorder)',borderRadius:6,padding:'8px 12px'}},
+          React.createElement('p',{style:{color:'var(--green)',margin:0,fontSize:12,fontWeight:600}},q.principle)
+        )
+      ),
+      React.createElement('button',{onClick:()=>{if(qIdx<sc.questions.length-1){setQIdx(i=>i+1);setPicked(null);}else{setQIdx(sc.questions.length);}},style:{padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},
+        qIdx<sc.questions.length-1?'Next Question →':'See Results'
+      )
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   DECISION FRAMEWORK VIEW
+   ═══════════════════════════════════════════════ */
+
+function DecisionView() {
+  const [selected, setSelected] = useState(null);
+  const categories = [...new Set(DECISIONS.map(d=>d.category))];
+  const [filter, setFilter] = useState('All');
+  const filtered = filter==='All'?DECISIONS:DECISIONS.filter(d=>d.category===filter);
+
+  return React.createElement('div',null,
+    React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:16,lineHeight:1.6}},'Click any situation to see the correct approach and why the common wrong answer fails.'),
+    React.createElement('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:16}},
+      React.createElement('button',{onClick:()=>setFilter('All'),style:{padding:'6px 12px',background:filter==='All'?'var(--accent)':'var(--card)',color:filter==='All'?'white':'var(--textMid)',border:`1px solid ${filter==='All'?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},'All'),
+      ...categories.map(c =>
+        React.createElement('button',{key:c,onClick:()=>setFilter(c),style:{padding:'6px 12px',background:filter===c?'var(--accent)':'var(--card)',color:filter===c?'white':'var(--textMid)',border:`1px solid ${filter===c?'var(--accent)':'var(--border)'}`,borderRadius:6,fontSize:12}},c)
+      )
+    ),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      ...filtered.map((d,i) =>
+        React.createElement('div',{key:i,onClick:()=>setSelected(selected===i?null:i),className:'fade-in',style:{animationDelay:`${i*30}ms`,background:'var(--card)',border:`1px solid ${selected===i?'var(--accent)44':'var(--border)'}`,borderRadius:'var(--radius)',padding:'14px 16px',cursor:'pointer',transition:'border-color .15s'}},
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}},
+            React.createElement('div',{style:{flex:1}},
+              React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},
+                React.createElement(Tag,{color:'var(--cyan)'},d.category),
+                React.createElement('span',{style:{color:'var(--text)',fontWeight:500,fontSize:14}},d.situation)
+              )
+            ),
+            React.createElement('span',{style:{color:'var(--textDim)',fontSize:14,transform:selected===i?'rotate(180deg)':'none',transition:'transform .2s'}},'▾')
+          ),
+          selected===i && React.createElement('div',{className:'fade-in',style:{marginTop:12,display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+            React.createElement('div',{style:{background:'var(--greenDim)',border:'1px solid var(--greenBorder)',borderRadius:8,padding:12}},
+              React.createElement('div',{style:{color:'var(--green)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'CORRECT'),
+              React.createElement('p',{style:{color:'var(--text)',fontSize:13,margin:0,fontWeight:500}},d.answer)
+            ),
+            React.createElement('div',{style:{background:'var(--redDim)',border:'1px solid var(--redBorder)',borderRadius:8,padding:12}},
+              React.createElement('div',{style:{color:'var(--red)',fontSize:10,fontWeight:700,fontFamily:'var(--mono)',marginBottom:4}},'COMMON WRONG ANSWER'),
+              React.createElement('p',{style:{color:'var(--text)',fontSize:13,margin:0}},d.wrong)
+            ),
+            React.createElement('div',{style:{gridColumn:'1/-1',background:'var(--bg3)',borderRadius:8,padding:12}},
+              React.createElement('p',{style:{color:'var(--textMid)',fontSize:12,margin:0,lineHeight:1.6}},
+                React.createElement('strong',{style:{color:'var(--accent2)'}},'Why: '),d.reasoning
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   QUIZ / EXAM SIMULATOR VIEW
+   ═══════════════════════════════════════════════ */
+
+function QuizView() {
+  const [mode,setMode] = useState('setup');
+  const [sectionFilter,setSectionFilter] = useState('all');
+  const [questions,setQuestions] = useState([]);
+  const [idx,setIdx] = useState(0);
+  const [picked,setPicked] = useState(null);
+  const [score,setScore] = useState(0);
+  const [answered,setAnswered] = useState(0);
+  const [answers,setAnswers] = useState([]);
+
+  function startQuiz() {
+    let qs = sectionFilter==='all' ? [...QUIZ_DATA] : QUIZ_DATA.filter(q=>q.section===sectionFilter);
+    for(let i=qs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qs[i],qs[j]]=[qs[j],qs[i]];}
+    setQuestions(qs);
+    setIdx(0);setPicked(null);setScore(0);setAnswered(0);setAnswers([]);
+    setMode('quiz');
+  }
+
+  if(mode==='setup') {
+    const sections = ['all',...TASK_STATEMENTS.map(t=>t.id)];
+    const counts = {};
+    sections.forEach(s=>{counts[s]=s==='all'?QUIZ_DATA.length:QUIZ_DATA.filter(q=>q.section===s).length;});
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('h3',{style:{color:'var(--text)',fontSize:18,marginBottom:8,fontFamily:'var(--display)'}},'Exam Simulator'),
+      React.createElement('p',{style:{color:'var(--textMid)',fontSize:13,marginBottom:20,lineHeight:1.6}},`${QUIZ_DATA.length} questions covering all 7 task statements. Filter by section or take the full exam.`),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:6,marginBottom:20}},
+        ...sections.map(s =>
+          React.createElement('div',{key:s,onClick:()=>setSectionFilter(s),style:{padding:'10px 14px',background:sectionFilter===s?'var(--accentDim)':'var(--card)',border:`1px solid ${sectionFilter===s?'var(--accent)44':'var(--border)'}`,borderRadius:8,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}},
+            React.createElement('span',{style:{color:sectionFilter===s?'var(--accent2)':'var(--text)',fontWeight:500,fontSize:14}},s==='all'?'All Sections':`Section ${s}: ${TASK_STATEMENTS.find(t=>t.id===s)?.title||''}`),
+            React.createElement(Tag,{color:counts[s]>0?'var(--cyan)':'var(--textDim)'},`${counts[s]} Q`)
+          )
+        )
+      ),
+      React.createElement('button',{onClick:startQuiz,disabled:counts[sectionFilter]===0,style:{padding:'12px 24px',background:counts[sectionFilter]>0?'var(--accent)':'var(--border)',color:'white',border:'none',borderRadius:8,fontSize:14,fontWeight:600,width:'100%'}},
+        `Start Quiz (${counts[sectionFilter]} questions)`
+      )
+    );
+  }
+
+  if(mode==='review') {
+    const bySection = {};
+    answers.forEach(a=>{
+      if(!bySection[a.section])bySection[a.section]={correct:0,total:0};
+      bySection[a.section].total++;
+      if(a.correct)bySection[a.section].correct++;
+    });
+    const pct = Math.round(score/questions.length*100);
+    return React.createElement('div',{className:'fade-in'},
+      React.createElement('div',{style:{textAlign:'center',marginBottom:24}},
+        React.createElement('div',{style:{fontSize:56,marginBottom:8}},pct>=80?'🎯':pct>=60?'📊':'📚'),
+        React.createElement('h2',{style:{color:'var(--text)',margin:'0 0 4px'}},`${score}/${questions.length} Correct (${pct}%)`),
+        React.createElement('p',{style:{color:pct>=72?'var(--green)':'var(--red)',fontSize:14}},pct>=72?'Above passing threshold (72%)':'Below passing threshold (72%)')
+      ),
+      React.createElement('h4',{style:{color:'var(--textMid)',fontSize:13,marginBottom:10,fontFamily:'var(--mono)'}},'BREAKDOWN BY SECTION'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:8,marginBottom:20}},
+        ...Object.entries(bySection).map(([sec,data]) => {
+          const p = Math.round(data.correct/data.total*100);
+          return React.createElement('div',{key:sec,style:{background:'var(--card)',borderRadius:8,padding:12,border:'1px solid var(--border)'}},
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},
+              React.createElement('span',{style:{color:'var(--text)',fontWeight:600,fontSize:13}},sec),
+              React.createElement('span',{style:{color:p>=72?'var(--green)':'var(--red)',fontSize:13,fontWeight:600}},`${p}%`)
+            ),
+            React.createElement('div',{style:{height:4,background:'var(--border)',borderRadius:2}},
+              React.createElement('div',{style:{height:'100%',width:`${p}%`,background:p>=72?'var(--green)':'var(--red)',borderRadius:2}})
+            )
+          );
+        })
+      ),
+      React.createElement('div',{style:{display:'flex',gap:10}},
+        React.createElement('button',{onClick:()=>setMode('setup'),style:{flex:1,padding:'10px 20px',background:'var(--card)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:8,fontWeight:600}},'New Quiz'),
+        React.createElement('button',{onClick:startQuiz,style:{flex:1,padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontWeight:600}},'Retry Same')
+      )
+    );
+  }
+
+  if(idx>=questions.length){setMode('review');return null;}
+  const q = questions[idx];
+
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+      React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center'}},
+        React.createElement(Tag,{color:'var(--cyan)'},`Q${idx+1}/${questions.length}`),
+        React.createElement(Tag,{color:'var(--accent)'},`Section ${q.section}`)
+      ),
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},
+        React.createElement('span',{style:{color:'var(--green)',fontSize:13,fontWeight:600}},`${score}/${answered}`),
+        React.createElement('button',{onClick:()=>setMode('setup'),style:{background:'none',border:'1px solid var(--border)',color:'var(--textDim)',borderRadius:6,padding:'4px 10px',fontSize:11}},'Exit')
+      )
+    ),
+    React.createElement('div',{style:{height:3,background:'var(--border)',borderRadius:2,marginBottom:16}},
+      React.createElement('div',{style:{height:'100%',width:`${((idx+(picked!==null?1:0))/questions.length)*100}%`,background:'linear-gradient(90deg,var(--accent),var(--green))',borderRadius:2,transition:'width .3s'}})
+    ),
+    React.createElement('p',{style:{color:'var(--text)',fontSize:14,lineHeight:1.65,marginBottom:16}},q.q),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+      ...q.opts.map((opt,i) => {
+        let bg='var(--card)',bdr='var(--border)';
+        if(picked!==null){
+          if(i===q.correct){bg='var(--greenDim)';bdr='var(--green)';}
+          else if(i===picked){bg='var(--redDim)';bdr='var(--red)';}
+        }
+        return React.createElement('div',{key:i,onClick:()=>{if(picked!==null)return;setPicked(i);setAnswered(a=>a+1);if(i===q.correct)setScore(s=>s+1);setAnswers(a=>[...a,{section:q.section,correct:i===q.correct}]);},style:{padding:'12px 14px',background:bg,border:`1px solid ${bdr}`,borderRadius:8,cursor:picked===null?'pointer':'default',color:'var(--text)',fontSize:13,lineHeight:1.5,transition:'all .15s'}},
+          React.createElement('span',{style:{color:'var(--textDim)',fontWeight:700,marginRight:8}},String.fromCharCode(65+i)+')'),opt
+        );
+      })
+    ),
+    picked!==null && React.createElement('div',{className:'fade-in',style:{marginTop:16}},
+      React.createElement('div',{style:{background:'var(--accentDim)',border:'1px solid rgba(124,92,252,.2)',borderRadius:8,padding:14}},
+        React.createElement('p',{style:{color:'var(--accent2)',fontWeight:700,margin:'0 0 4px',fontSize:11,fontFamily:'var(--mono)'}},'EXPLANATION'),
+        React.createElement('p',{style:{color:'var(--textMid)',margin:0,fontSize:13,lineHeight:1.6}},q.why)
+      ),
+      React.createElement('button',{onClick:()=>{setIdx(i=>i+1);setPicked(null);},style:{marginTop:10,padding:'10px 20px',background:'var(--accent)',color:'white',border:'none',borderRadius:8,fontSize:13,fontWeight:600,width:'100%'}},
+        idx<questions.length-1?'Next Question →':'See Results'
+      )
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   QUICK REFERENCE VIEW
+   ═══════════════════════════════════════════════ */
+
+function ReferenceView() {
+  const tables = [
+    {title:'stop_reason Routing',color:'var(--cyan)',rows:[
+      ['stop_reason','Action','Terminal?'],
+      ['"tool_use"','Execute tools, append results, loop','No'],
+      ['"end_turn"','Return response to user','Yes'],
+      ['"max_tokens"','Response truncated (not finished)','Yes*'],
+      ['"stop_sequence"','Hit custom stop sequence','Yes'],
+      ['"pause_turn"','Server iteration limit — continue!','No!'],
+    ]},
+    {title:'Hook Types',color:'var(--orange)',rows:[
+      ['Hook','When','Can Block?'],
+      ['PreToolUse','Before tool execution','Yes (deny)'],
+      ['PostToolUse','After tool success','No'],
+      ['PostToolUseFailure','After tool fails','No'],
+      ['Stop','Agent finishes','No'],
+      ['SubagentStart','Subagent spawns','No'],
+      ['UserPromptSubmit','User submits','No'],
+    ]},
+    {title:'Decision Matrix',color:'var(--red)',rows:[
+      ['Situation','Approach'],
+      ['Financial/identity ops','Programmatic hooks (deterministic)'],
+      ['Tool selection issues','Better tool descriptions first'],
+      ['Escalation calibration','Few-shot examples first'],
+      ['Missing research coverage','Fix coordinator decomposition'],
+      ['Inconsistent review depth','Split into focused passes'],
+      ['Stale session context','Fresh start + summary injection'],
+      ['Comparing approaches','fork_session'],
+      ['Heterogeneous data formats','PostToolUse normalization'],
+    ]},
+    {title:'Session Commands',color:'var(--yellow)',rows:[
+      ['Command','Purpose'],
+      ['claude -p "..."','Non-interactive (CI/CD)'],
+      ['--output-format json','Structured CI output'],
+      ['--resume <name>','Continue named session'],
+      ['-c','Continue most recent'],
+      ['--fork-session','Branch conversation (NOT filesystem!)'],
+      ['/compact','Compress context usage'],
+      ['/memory','View loaded config files'],
+    ]},
+  ];
+
+  const traps = [
+    {title:'Prompt vs Code',desc:'Financial/identity → ALWAYS programmatic hooks, even if prompt sounds reasonable'},
+    {title:'Blame Game',desc:'Missing coverage → coordinator decomposition, NOT subagent execution'},
+    {title:'Context Window Myth',desc:'Bigger context does NOT fix attention dilution. Split into focused passes.'},
+    {title:'Inherited Context',desc:'Subagents DON\'T inherit parent context. Must be in Task prompt.'},
+    {title:'Error Suppression',desc:'Empty-results-as-success AND terminate-on-failure are BOTH wrong. Structured errors.'},
+    {title:'Iteration Caps',desc:'max_turns is a GUARDRAIL, not loop control. stop_reason drives the loop.'},
+    {title:'fork ≠ git branch',desc:'fork_session branches CONVERSATION, not filesystem. Both see same files.'},
+  ];
+
+  const sources = [
+    {name:'Building Effective Agents',url:'https://anthropic.com/engineering/building-effective-agents',desc:'5 workflow patterns taxonomy — the canonical reference'},
+    {name:'Agent SDK: Agent Loop',url:'https://platform.claude.com/docs/en/agent-sdk/agent-loop',desc:'Loop mechanics, stop_reason, turns, safety valves'},
+    {name:'Agent SDK: Hooks',url:'https://platform.claude.com/docs/en/agent-sdk/hooks',desc:'PreToolUse, PostToolUse, permission decisions'},
+    {name:'Agent SDK: Subagents',url:'https://docs.anthropic.com/en/docs/claude-code/sdk/subagents',desc:'Task tool, context isolation, parallel spawning'},
+    {name:'Lost in the Middle (Stanford)',url:'https://cs.stanford.edu/~nfliu/papers/lost-in-the-middle.arxiv2023.pdf',desc:'U-shaped attention curve research'},
+    {name:'Tool Use Overview',url:'https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview',desc:'tool_choice, strict mode, tool descriptions'},
+  ];
+
+  return React.createElement('div',{className:'fade-in'},
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(380px,1fr))',gap:12,marginBottom:20}},
+      ...tables.map(t =>
+        React.createElement('div',{key:t.title,style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},
+          React.createElement('h4',{style:{color:t.color,margin:'0 0 10px',fontSize:14,fontFamily:'var(--display)'}},t.title),
+          React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:12,fontFamily:'var(--mono)'}},
+            React.createElement('thead',null,
+              React.createElement('tr',null,...t.rows[0].map((h,i)=>
+                React.createElement('th',{key:i,style:{textAlign:'left',padding:'4px 6px',color:'var(--textDim)',borderBottom:'1px solid var(--border)',fontSize:10,fontWeight:600}},h)
+              ))
+            ),
+            React.createElement('tbody',null,
+              ...t.rows.slice(1).map((row,i) =>
+                React.createElement('tr',{key:i},...row.map((cell,j)=>
+                  React.createElement('td',{key:j,style:{padding:'5px 6px',color:j===0?'var(--text)':'var(--textMid)',borderBottom:'1px solid var(--border)',fontSize:11}},cell)
+                ))
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    React.createElement('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,marginBottom:20,border:'1px solid var(--redBorder)'}},
+      React.createElement('h4',{style:{color:'var(--red)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Top 7 Exam Traps'),
+      ...traps.map((t,i) =>
+        React.createElement('div',{key:i,style:{marginBottom:8,fontSize:13}},
+          React.createElement('span',{style:{color:'var(--text)',fontWeight:600}},`${i+1}. ${t.title}: `),
+          React.createElement('span',{style:{color:'var(--textMid)'}},t.desc)
+        )
+      )
+    ),
+
+    React.createElement('div',{style:{background:'var(--card)',borderRadius:'var(--radius-lg)',padding:16,border:'1px solid var(--border)'}},
+      React.createElement('h4',{style:{color:'var(--accent2)',margin:'0 0 12px',fontSize:15,fontFamily:'var(--display)'}},'Reference Sources'),
+      ...sources.map((s,i) =>
+        React.createElement('div',{key:i,style:{marginBottom:10,paddingBottom:10,borderBottom:i<sources.length-1?'1px solid var(--border)':'none'}},
+          React.createElement('a',{href:s.url,target:'_blank',rel:'noopener',style:{color:'var(--cyan)',fontSize:13,fontWeight:500,textDecoration:'none'}},s.name,' ↗'),
+          React.createElement('p',{style:{color:'var(--textDim)',fontSize:12,margin:'2px 0 0'}},s.desc)
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN APP
+   ═══════════════════════════════════════════════ */
+
+function App() {
+  const [view, setView] = useState('study');
+  const [completed, setCompleted] = useState(() => {
+    try { const s = localStorage.getItem('ccaf-d1-completed'); return s ? new Set(JSON.parse(s)) : new Set(); }
+    catch { return new Set(); }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ccaf-d1-completed', JSON.stringify([...completed]));
+  }, [completed]);
+
+  const toggleComplete = (id) => {
+    setCompleted(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  return React.createElement('div',null,
+    // Header
+    React.createElement('div',{style:{marginBottom:20}},
+      React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center',marginBottom:8,flexWrap:'wrap'}},
+        React.createElement(Tag,{color:'var(--accent)'},'DOMAIN 1'),
+        React.createElement(Tag,{color:'var(--red)'},'27% OF EXAM — HIGHEST WEIGHT'),
+      ),
+      React.createElement('h1',{style:{fontSize:28,margin:'8px 0 4px',fontWeight:800,fontFamily:'var(--display)',letterSpacing:'-0.02em',lineHeight:1.2}},'Agentic Architecture',React.createElement('br',null),React.createElement('span',{style:{color:'var(--accent2)'}},'& Orchestration')),
+      React.createElement('p',{style:{color:'var(--textDim)',margin:0,fontSize:13}},'Claude Certified Architect — Foundations — Interactive Study Guide')
+    ),
+
+    // Navigation
+    React.createElement('div',{style:{display:'flex',gap:4,marginBottom:24,overflowX:'auto',paddingBottom:4}},
+      ...VIEWS.map(v =>
+        React.createElement('button',{key:v,onClick:()=>setView(v),style:{padding:'8px 14px',background:view===v?'var(--accent)':'var(--card)',color:view===v?'white':'var(--textMid)',border:`1px solid ${view===v?'var(--accent)':'var(--border)'}`,borderRadius:8,fontSize:13,fontWeight:view===v?600:400,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:6}},
+          React.createElement(Icon,{d:VIEW_ICONS[v],size:16,color:view===v?'white':'var(--textDim)'}),
+          VIEW_LABELS[v]
+        )
+      )
+    ),
+
+    // Views
+    view==='study' && React.createElement(StudyView,{completed,onToggle:toggleComplete}),
+    view==='scenarios' && React.createElement(ScenariosView),
+    view==='decide' && React.createElement(DecisionView),
+    view==='quiz' && React.createElement(QuizView),
+    view==='reference' && React.createElement(ReferenceView),
+
+    // Footer
+    React.createElement('div',{style:{marginTop:48,paddingTop:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:10}},'Domain 1 of 5 — CCA-F Study Guide'),
+      React.createElement('span',{style:{color:'var(--textDim)',fontSize:10}},'Sources: Anthropic Docs, Agent SDK, MCP Spec, Building Effective Agents Blog')
+    )
+  );
+}
+
+createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+</body>
+</html>
